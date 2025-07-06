@@ -42,7 +42,7 @@ DB_URL=coldemailer.db
 ### 4. Run the server
 
 ```bash
-go run cmd/server/main.go
+docker-compose up --build
 ```
 
 ### 5. Test the health endpoint

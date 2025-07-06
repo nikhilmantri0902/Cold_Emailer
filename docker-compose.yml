@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  cold-emailer:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GMAIL_CLIENT_ID=${GMAIL_CLIENT_ID}
+      - GMAIL_CLIENT_SECRET=${GMAIL_CLIENT_SECRET}
+      - GMAIL_REDIRECT_URI=${GMAIL_REDIRECT_URI}
+      - DB_URL=${DB_URL:-coldemailer.db}
+    volumes:
+      - .:/app
+      - ./storage:/app/storage
+    restart: unless-stopped
+    command: go run cmd/server/main.go 
