@@ -12,6 +12,9 @@ import (
 func main() {
 	constants.PrintENV()
 
+	// Initialize storage service
+	api.InitStorage()
+
 	// Initialize Gin
 	r := gin.Default()
 

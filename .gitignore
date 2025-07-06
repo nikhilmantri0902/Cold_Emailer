@@ -30,3 +30,14 @@ Thumbs.db
 
 # Environment files
 .env
+
+# User uploaded files and storage
+/uploads/
+/storage/uploads/
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+/tmp/
+*.tmp

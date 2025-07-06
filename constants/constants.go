@@ -16,6 +16,10 @@ var (
 	DB_URL              string
 )
 
+const (
+	RESUME_CATEGORY = "resumes"
+)
+
 func init() {
 	// Load env vars from .env
 	err := godotenv.Load()
