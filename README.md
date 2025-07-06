@@ -1,4 +1,4 @@
-# Go-AI Cold Emailer
+# Cold Emailer
 
 A Golang-based API-first project to automate personalized cold outreach to recruiters and CTOs, leveraging OpenAI for email generation and Gmail API for sending emails (with resume attachment).
 Built for API usage (testable via Postman).
@@ -28,7 +28,7 @@ go mod tidy
 
 ### 3. Setup environment variables
 
-Copy `.env.example` (or `.env`) and fill in your secrets:
+Copy `.env.example` into `.env` and fill in your secrets:
 
 ```env
 PORT=8080
