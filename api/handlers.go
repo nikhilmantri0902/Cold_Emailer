@@ -2,9 +2,11 @@ package api
 
 import (
 	"cold_emailer/constants"
+	"cold_emailer/dbmodels/profileinfo"
 	"cold_emailer/storage"
+	"context"
+	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -17,9 +19,6 @@ import (
 // Global storage service instance
 var storageService *storage.StorageService
 
-// In-memory storage for the latest uploaded profile (MVP, single-user)
-var latestProfile *ProfileUploadRequest
-
 // InitStorage initializes the storage service
 func InitStorage() {
 	storageService = storage.NewStorageService(nil) // Use default config
@@ -27,7 +26,6 @@ func InitStorage() {
 
 // Upload user profile and resume
 func UploadProfileHandler(c *gin.Context) {
-	// Parse multipart form (max 32MB)
 	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "INVALID_FORM",
@@ -37,7 +35,6 @@ func UploadProfileHandler(c *gin.Context) {
 		return
 	}
 
-	// Parse profile data from form
 	var profileReq ProfileUploadRequest
 	if err := c.ShouldBind(&profileReq); err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -47,14 +44,12 @@ func UploadProfileHandler(c *gin.Context) {
 		})
 		return
 	}
-	// Store the profile in memory (MVP)
-	latestProfile = &profileReq
-	log.Println("profileReq", profileReq)
 
 	// Handle resume file upload
 	var resumeFile *storage.FileInfo
+	var resumePath string
+	var resumeMetadata string
 	if file, err := c.FormFile("resume"); err == nil && file != nil {
-		// Upload resume file
 		uploadedFile, err := storageService.UploadFile(file, constants.RESUME_CATEGORY)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -65,19 +60,55 @@ func UploadProfileHandler(c *gin.Context) {
 			return
 		}
 		resumeFile = uploadedFile
+		resumePath = uploadedFile.FilePath
+		// Save resume metadata as JSON using a map
+		meta := map[string]interface{}{
+			"resume_metadata": map[string]interface{}{
+				"original_name": uploadedFile.OriginalName,
+				"stored_name":   uploadedFile.StoredName,
+				"size":          uploadedFile.Size,
+				"mime_type":     uploadedFile.MimeType,
+				"uploaded_at":   uploadedFile.UploadedAt.Format(time.RFC3339),
+			},
+		}
+		b, err := json.Marshal(meta)
+		if err == nil {
+			resumeMetadata = string(b)
+		} else {
+			resumeMetadata = "{}"
+		}
 	}
 
-	// Generate profile ID
 	profileID := uuid.New().String()
 
-	// Create response
+	// Insert into DB
+	info := profileinfo.StructForSet{
+		ID:          profileID,
+		Status:      "ACTIVE",
+		Name:        profileReq.Name,
+		Email:       profileReq.Email,
+		Phone:       profileReq.Phone,
+		LinkedInURL: profileReq.LinkedInURL,
+		Experience:  profileReq.Experience,
+		Skills:      profileReq.Skills,
+		Summary:     profileReq.Summary,
+		ResumePath:  resumePath,
+		Metadata:    resumeMetadata,
+	}
+	if err := profileinfo.Create(context.Background(), info); err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "DB_ERROR",
+			Message: fmt.Sprintf("Failed to save profile: %v", err),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
 	response := ProfileUploadResponse{
 		Message:   "Profile uploaded successfully",
 		ProfileID: profileID,
 		CreatedAt: time.Now(),
 	}
-
-	// Add resume file info if uploaded
 	if resumeFile != nil {
 		response.ResumeFile = &FileInfo{
 			ID:           resumeFile.ID,
@@ -104,7 +135,6 @@ func UploadTargetsHandler(c *gin.Context) {
 		return
 	}
 
-	// Generate target IDs
 	var targetIDs []string
 	for range req.Targets {
 		targetIDs = append(targetIDs, uuid.New().String())
@@ -131,36 +161,36 @@ func GenerateEmailHandler(c *gin.Context) {
 		return
 	}
 
-	// Use the latest uploaded profile (MVP, single-user)
-	if latestProfile == nil {
+	// Fetch latest active profile from DB
+	profile, err := profileinfo.GetLatestActive(context.Background())
+	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "NO_PROFILE",
-			Message: "No profile uploaded yet. Please upload your profile first.",
+			Message: "No active profile found. Please upload your profile first.",
 			Code:    http.StatusBadRequest,
 		})
 		return
 	}
 
-	// Build a rich prompt for OpenAI
 	profileText := fmt.Sprintf(
 		"Name: %s\nEmail: %s\nPhone: %s\nLinkedIn: %s\nExperience: %s\nSkills: %s\nSummary: %s",
-		latestProfile.Name,
-		latestProfile.Email,
-		latestProfile.Phone,
-		latestProfile.LinkedInURL,
-		latestProfile.Experience,
-		latestProfile.Skills,
-		latestProfile.Summary,
+		profile.Name,
+		profile.Email,
+		profile.Phone,
+		profile.LinkedInURL,
+		profile.Experience,
+		profile.Skills,
+		profile.Summary,
 	)
 
 	prompt := fmt.Sprintf(
-		"Generate a personalized cold outreach email for a job opportunity.\n\nProfile:\n%s\n\nTarget Info: %s\n\n%s",
+		"Generate a personalized cold outreach email for a job opportunity. Company Name: %s\n\nProfile:\n%s\n\nTarget Info: %s\n\n%s",
+		req.CompanyName,
 		profileText,
 		req.TargetID, // In a real app, you'd look up the target info by ID
 		req.CustomPrompt,
 	)
 
-	// Call OpenAI client
 	openaiClient := openai.NewOpenAIClient()
 	emailText, err := openaiClient.GenerateEmail(prompt)
 	if err != nil {

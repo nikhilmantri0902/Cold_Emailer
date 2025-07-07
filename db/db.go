@@ -22,16 +22,24 @@ const (
 	MigrationTable = "migration_metadata"
 )
 
-// ConnectDB connects to PostgreSQL and returns the DB instance
-func ConnectDB(connStr string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", connStr)
+// InitDB initializes the global DB instance
+func InitDB(connStr string) error {
+	var err error
+	DB, err = sql.Open("postgres", connStr)
 	if err != nil {
-		return nil, err
+		log.Println("error:", err)
+		return err
 	}
-	if err := db.Ping(); err != nil {
-		return nil, err
+	if err := DB.Ping(); err != nil {
+		log.Println("error:", err)
+		return err
 	}
-	return db, nil
+	return nil
+}
+
+// GetDB returns the global DB instance
+func GetDB() *sql.DB {
+	return DB
 }
 
 // EnsureMigrationTable ensures the migration_metadata table exists

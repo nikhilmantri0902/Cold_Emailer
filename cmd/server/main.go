@@ -30,16 +30,14 @@ func main() {
 
 	constants.PrintENV()
 
-	// Connect to PostgreSQL
-
-	dbConn, err := db.ConnectDB(constants.PG_DB_URL)
-	if err != nil {
+	// Initialize DB (singleton)
+	if err := db.InitDB(constants.PG_DB_URL); err != nil {
 		log.Fatalf("Failed to connect to DB: %v", err)
 	}
-	defer dbConn.Close()
+	defer db.GetDB().Close()
 
 	// Run migrations
-	if err := db.RunMigrations(dbConn); err != nil {
+	if err := db.RunMigrations(db.GetDB()); err != nil {
 		log.Fatalf("Migration failed: %v", err)
 	}
 

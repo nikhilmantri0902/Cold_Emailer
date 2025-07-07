@@ -53,7 +53,8 @@ type TargetsUploadResponse struct {
 
 // Email generation request/response
 type GenerateEmailRequest struct {
-	TargetID     string `json:"target_id" binding:"required"`
+	TargetID     string `json:"target_id"`
+	CompanyName  string `json:"company_name"`
 	Template     string `json:"template,omitempty"`      // Optional template name
 	CustomPrompt string `json:"custom_prompt,omitempty"` // Optional custom prompt
 }
