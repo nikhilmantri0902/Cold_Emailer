@@ -36,7 +36,6 @@ OPENAI_API_KEY=your-openai-api-key
 GMAIL_CLIENT_ID=your-gmail-client-id
 GMAIL_CLIENT_SECRET=your-gmail-client-secret
 GMAIL_REDIRECT_URI=http://localhost:8080/oauth2callback
-DB_URL=coldemailer.db
 ```
 
 ### 4. Run the server

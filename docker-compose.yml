@@ -11,9 +11,23 @@ services:
       - GMAIL_CLIENT_ID=${GMAIL_CLIENT_ID}
       - GMAIL_CLIENT_SECRET=${GMAIL_CLIENT_SECRET}
       - GMAIL_REDIRECT_URI=${GMAIL_REDIRECT_URI}
-      - DB_URL=${DB_URL:-coldemailer.db}
     volumes:
       - .:/app
       - ./storage:/app/storage
     restart: unless-stopped
     command: go run cmd/server/main.go 
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: coldemailer
+      POSTGRES_PASSWORD: coldemailer
+      POSTGRES_DB: coldemailer
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata: 

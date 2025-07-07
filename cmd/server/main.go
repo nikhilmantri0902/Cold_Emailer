@@ -3,14 +3,45 @@ package main
 import (
 	"cold_emailer/api"
 	"cold_emailer/constants"
+	"cold_emailer/db"
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	// to add migration file:
+	// go run cmd/server/main.go --generate-migration profile_info_resume_path
+	migrationSuffix := flag.String("generate-migration", "", "Generate a new migration file with the given suffix and exit")
+	flag.Parse()
+
+	if *migrationSuffix != "" {
+		path, err := db.GenerateMigrationFile(*migrationSuffix)
+		if err != nil {
+			log.Fatalf("Failed to generate migration: %v", err)
+		}
+		fmt.Printf("Created migration: %s\n", path)
+		os.Exit(0)
+	}
+
 	constants.PrintENV()
+
+	// Connect to PostgreSQL
+
+	dbConn, err := db.ConnectDB(constants.PG_DB_URL)
+	if err != nil {
+		log.Fatalf("Failed to connect to DB: %v", err)
+	}
+	defer dbConn.Close()
+
+	// Run migrations
+	if err := db.RunMigrations(dbConn); err != nil {
+		log.Fatalf("Migration failed: %v", err)
+	}
 
 	// Initialize storage service
 	api.InitStorage()

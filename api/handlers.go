@@ -8,12 +8,17 @@ import (
 	"net/http"
 	"time"
 
+	"cold_emailer/openai"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 // Global storage service instance
 var storageService *storage.StorageService
+
+// In-memory storage for the latest uploaded profile (MVP, single-user)
+var latestProfile *ProfileUploadRequest
 
 // InitStorage initializes the storage service
 func InitStorage() {
@@ -42,7 +47,8 @@ func UploadProfileHandler(c *gin.Context) {
 		})
 		return
 	}
-	// TODO: Store the profile data in the database
+	// Store the profile in memory (MVP)
+	latestProfile = &profileReq
 	log.Println("profileReq", profileReq)
 
 	// Handle resume file upload
@@ -125,11 +131,51 @@ func GenerateEmailHandler(c *gin.Context) {
 		return
 	}
 
-	// TODO: Call OpenAI, generate and return email
+	// Use the latest uploaded profile (MVP, single-user)
+	if latestProfile == nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "NO_PROFILE",
+			Message: "No profile uploaded yet. Please upload your profile first.",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Build a rich prompt for OpenAI
+	profileText := fmt.Sprintf(
+		"Name: %s\nEmail: %s\nPhone: %s\nLinkedIn: %s\nExperience: %s\nSkills: %s\nSummary: %s",
+		latestProfile.Name,
+		latestProfile.Email,
+		latestProfile.Phone,
+		latestProfile.LinkedInURL,
+		latestProfile.Experience,
+		latestProfile.Skills,
+		latestProfile.Summary,
+	)
+
+	prompt := fmt.Sprintf(
+		"Generate a personalized cold outreach email for a job opportunity.\n\nProfile:\n%s\n\nTarget Info: %s\n\n%s",
+		profileText,
+		req.TargetID, // In a real app, you'd look up the target info by ID
+		req.CustomPrompt,
+	)
+
+	// Call OpenAI client
+	openaiClient := openai.NewOpenAIClient()
+	emailText, err := openaiClient.GenerateEmail(prompt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "OPENAI_ERROR",
+			Message: fmt.Sprintf("Failed to generate email: %v", err),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
 	response := GenerateEmailResponse{
 		Message:     "Email generated successfully",
-		EmailDraft:  "This is a placeholder email draft. OpenAI integration pending.",
-		Subject:     "Interested in discussing opportunities",
+		EmailDraft:  emailText,
+		Subject:     "Personalized Cold Outreach Email",
 		GeneratedAt: time.Now(),
 	}
 
