@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -73,6 +74,7 @@ func (s *StorageService) UploadFile(file *multipart.FileHeader, category string)
 	// Open the uploaded file
 	src, err := file.Open()
 	if err != nil {
+		log.Println("error:", err)
 		return nil, fmt.Errorf("failed to open uploaded file: %v", err)
 	}
 	defer src.Close()
@@ -85,6 +87,7 @@ func (s *StorageService) UploadFile(file *multipart.FileHeader, category string)
 	// Create category directory
 	categoryDir := filepath.Join(s.config.BaseDir, category)
 	if err := os.MkdirAll(categoryDir, 0755); err != nil {
+		log.Println("error:", err)
 		return nil, fmt.Errorf("failed to create category directory: %v", err)
 	}
 
@@ -92,12 +95,14 @@ func (s *StorageService) UploadFile(file *multipart.FileHeader, category string)
 	filePath := filepath.Join(categoryDir, storedName)
 	dst, err := os.Create(filePath)
 	if err != nil {
+		log.Println("error:", err)
 		return nil, fmt.Errorf("failed to create destination file: %v", err)
 	}
 	defer dst.Close()
 
 	// Copy file content
 	if _, err = io.Copy(dst, src); err != nil {
+		log.Println("error:", err)
 		return nil, fmt.Errorf("failed to copy file content: %v", err)
 	}
 
@@ -122,6 +127,7 @@ func (s *StorageService) GetFile(fileID, category string) (*FileInfo, error) {
 	// Search for file with the given ID
 	files, err := os.ReadDir(categoryDir)
 	if err != nil {
+		log.Println("error:", err)
 		return nil, fmt.Errorf("failed to read category directory: %v", err)
 	}
 
@@ -130,6 +136,7 @@ func (s *StorageService) GetFile(fileID, category string) (*FileInfo, error) {
 			filePath := filepath.Join(categoryDir, file.Name())
 			fileInfo, err := os.Stat(filePath)
 			if err != nil {
+				log.Println("error:", err)
 				continue
 			}
 
@@ -163,6 +170,7 @@ func (s *StorageService) ListFiles(category string) ([]*FileInfo, error) {
 
 	files, err := os.ReadDir(categoryDir)
 	if err != nil {
+		log.Println("error:", err)
 		return nil, fmt.Errorf("failed to read category directory: %v", err)
 	}
 
@@ -172,6 +180,7 @@ func (s *StorageService) ListFiles(category string) ([]*FileInfo, error) {
 			filePath := filepath.Join(categoryDir, file.Name())
 			fileInfo, err := os.Stat(filePath)
 			if err != nil {
+				log.Println("error:", err)
 				continue
 			}
 

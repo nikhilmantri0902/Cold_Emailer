@@ -3,6 +3,7 @@ package gmailtokens
 import (
 	"cold_emailer/db"
 	"context"
+	"log"
 )
 
 type GmailTokenForSet struct {
@@ -33,6 +34,9 @@ func CreateGmailToken(ctx context.Context, t GmailTokenForSet) error {
 		t.RefreshToken,
 		t.Expiry,
 	)
+	if err != nil {
+		log.Println("error:", err)
+	}
 	return err
 }
 
@@ -41,5 +45,8 @@ func GetLatestToken(ctx context.Context) (GmailToken, error) {
 	query := `SELECT id, email_id, access_token, refresh_token, expiry, created_at FROM gmail_tokens ORDER BY created_at DESC LIMIT 1`
 	row := db.GetDB().QueryRowContext(ctx, query)
 	err := row.Scan(&t.ID, &t.EmailID, &t.AccessToken, &t.RefreshToken, &t.Expiry, &t.CreatedAt)
+	if err != nil {
+		log.Println("error:", err)
+	}
 	return t, err
 }

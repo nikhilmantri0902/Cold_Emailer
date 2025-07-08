@@ -68,5 +68,8 @@ func GetLatestActive(ctx context.Context) (Struct, error) {
 		&result.ResumePath,
 		&result.Metadata,
 	)
+	if err != nil {
+		log.Println("error:", err)
+	}
 	return result, err
 }
