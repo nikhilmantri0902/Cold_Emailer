@@ -322,3 +322,35 @@ func GmailOAuth2CallbackHandler(c *gin.Context) {
 		"expiry":        tok.Expiry,
 	})
 }
+
+// SendSingleEmailRequest is the request body for /send-single-email
+type SendSingleEmailRequest struct {
+	To      string `json:"to" binding:"required,email"`
+	Subject string `json:"subject" binding:"required"`
+	Body    string `json:"body" binding:"required"`
+}
+
+// SendSingleEmailHandler handles sending a single test email
+func SendSingleEmailHandler(c *gin.Context) {
+	var req SendSingleEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	ctx := context.Background()
+	token, err := gmailtokens.GetLatestToken(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No Gmail token found. Please authenticate first."})
+		return
+	}
+	from := token.EmailID
+	if from == "me" {
+		from = "your@email.com" // fallback, replace with your real email if needed
+	}
+	err = gmail.SendSingleEmail(ctx, token.AccessToken, from, req.To, req.Subject, req.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Email sent successfully"})
+}

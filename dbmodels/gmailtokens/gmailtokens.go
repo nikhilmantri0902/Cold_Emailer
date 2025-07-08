@@ -35,3 +35,11 @@ func CreateGmailToken(ctx context.Context, t GmailTokenForSet) error {
 	)
 	return err
 }
+
+func GetLatestToken(ctx context.Context) (GmailToken, error) {
+	var t GmailToken
+	query := `SELECT id, email_id, access_token, refresh_token, expiry, created_at FROM gmail_tokens ORDER BY created_at DESC LIMIT 1`
+	row := db.GetDB().QueryRowContext(ctx, query)
+	err := row.Scan(&t.ID, &t.EmailID, &t.AccessToken, &t.RefreshToken, &t.Expiry, &t.CreatedAt)
+	return t, err
+}

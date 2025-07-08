@@ -57,6 +57,7 @@ func main() {
 	apiRoutes.POST("/targets", api.UploadTargetsHandler)
 	apiRoutes.POST("/generate-email", api.GenerateEmailHandler)
 	apiRoutes.POST("/send-email", api.SendEmailHandler)
+	apiRoutes.POST("/send-single-email", api.SendSingleEmailHandler)
 	apiRoutes.GET("/status", api.StatusHandler)
 	apiRoutes.GET("/logs", api.LogsHandler)
 
