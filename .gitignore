@@ -37,7 +37,7 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
-
+coldemailerclient.json
 # Temporary files
 /tmp/
 *.tmp

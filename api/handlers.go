@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"cold_emailer/gmail"
 	"cold_emailer/openai"
 
 	"github.com/gin-gonic/gin"
@@ -276,4 +277,32 @@ func LogsHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// Gmail OAuth2: Initiate auth flow
+func GmailAuthInitiateHandler(c *gin.Context) {
+	state := "state-token" // In production, generate a random state and validate it in callback
+	url := gmail.GetAuthURL(state)
+	c.JSON(http.StatusOK, gin.H{"auth_url": url})
+}
+
+// Gmail OAuth2: Callback
+func GmailOAuth2CallbackHandler(c *gin.Context) {
+	code := c.Query("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing code in callback"})
+		return
+	}
+	ctx := context.Background()
+	tok, err := gmail.ExchangeCode(ctx, code)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	// For now, return the tokens in the response (in production, store securely)
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  tok.AccessToken,
+		"refresh_token": tok.RefreshToken,
+		"expiry":        tok.Expiry,
+	})
 }

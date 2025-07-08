@@ -60,6 +60,10 @@ func main() {
 	apiRoutes.GET("/status", api.StatusHandler)
 	apiRoutes.GET("/logs", api.LogsHandler)
 
+	// Gmail OAuth2 endpoints
+	r.GET("/gmail-auth-initiate", api.GmailAuthInitiateHandler)
+	r.GET("/gmail-oauth2callback", api.GmailOAuth2CallbackHandler)
+
 	log.Printf("Server starting on port %s", constants.PORT)
 	r.Run(":" + constants.PORT)
 }
