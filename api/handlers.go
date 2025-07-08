@@ -2,6 +2,7 @@ package api
 
 import (
 	"cold_emailer/constants"
+	"cold_emailer/dbmodels/gmailtokens"
 	"cold_emailer/dbmodels/profileinfo"
 	"cold_emailer/storage"
 	"context"
@@ -299,7 +300,22 @@ func GmailOAuth2CallbackHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	// For now, return the tokens in the response (in production, store securely)
+
+	// For now, get the user's email from the token info (in production, use Gmail API to get profile)
+	emailID := c.Query("email_id") // Optionally pass email_id as query param
+	if emailID == "" {
+		emailID = "me" // fallback, but should be set properly
+	}
+
+	tokenRow := gmailtokens.GmailTokenForSet{
+		ID:           uuid.New().String(),
+		EmailID:      emailID,
+		AccessToken:  tok.AccessToken,
+		RefreshToken: tok.RefreshToken,
+		Expiry:       tok.Expiry.Format(time.RFC3339),
+	}
+	_ = gmailtokens.CreateGmailToken(ctx, tokenRow)
+
 	c.JSON(http.StatusOK, gin.H{
 		"access_token":  tok.AccessToken,
 		"refresh_token": tok.RefreshToken,
