@@ -17,16 +17,19 @@ var (
 	OPENAI_MODEL                 string
 	OPENAI_TEMPERATURE           float32
 	OPENAI_MAX_COMPLETION_TOKENS int
+	APOLLO_API_KEY               string
 )
 
 // constants
-const (
+var (
 	RESUME_CATEGORY = "resumes"
+	PG_DB_URL       = fmt.Sprintf("postgres://%s:%s@db:5432/%s?sslmode=disable", "coldemailer", "coldemailer", "coldemailer")
+	TargetCountries = []string{
+		"Germany", "Netherlands", "Canada", "Sweden", "Finland", "Norway", "Ireland", "United Kingdom", "Luxembourg", "United Arab Emirates", "Singapore", "Australia",
+	}
 )
 
-var (
-	PG_DB_URL = fmt.Sprintf("postgres://%s:%s@db:5432/%s?sslmode=disable", "coldemailer", "coldemailer", "coldemailer")
-)
+var ()
 
 func init() {
 	// Load env vars from .env
@@ -43,6 +46,7 @@ func init() {
 	OPENAI_MODEL = getEnv("OPENAI_MODEL", "gpt-3.5-turbo")
 	OPENAI_TEMPERATURE = getEnvFloat32("OPENAI_TEMPERATURE", 0.7)
 	OPENAI_MAX_COMPLETION_TOKENS = getEnvInt("OPENAI_MAX_COMPLETION_TOKENS", 512)
+	APOLLO_API_KEY = getEnv("APOLLO_API_KEY", "")
 }
 
 func PrintENV() {
@@ -51,4 +55,8 @@ func PrintENV() {
 	log.Printf("GMAIL_CLIENT_ID: %s", GMAIL_CLIENT_ID)
 	log.Printf("GMAIL_CLIENT_SECRET: %s", GMAIL_CLIENT_SECRET)
 	log.Printf("GMAIL_REDIRECT_URI: %s", GMAIL_REDIRECT_URI)
+	log.Printf("OPENAI_MODEL: %s", OPENAI_MODEL)
+	log.Printf("OPENAI_TEMPERATURE: %s", OPENAI_TEMPERATURE)
+	log.Printf("OPENAI_MAX_COMPLETION_TOKENS: %s", OPENAI_MAX_COMPLETION_TOKENS)
+	log.Printf("APOLLO_API_KEY: %s", APOLLO_API_KEY)
 }

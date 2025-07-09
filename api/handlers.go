@@ -2,6 +2,8 @@ package api
 
 import (
 	"cold_emailer/constants"
+	"cold_emailer/dbmodels/companies"
+	"cold_emailer/dbmodels/contacts"
 	"cold_emailer/dbmodels/gmailtokens"
 	"cold_emailer/dbmodels/profileinfo"
 	"cold_emailer/storage"
@@ -12,6 +14,7 @@ import (
 	"net/http"
 	"time"
 
+	"cold_emailer/apollo"
 	"cold_emailer/gmail"
 	"cold_emailer/openai"
 
@@ -368,4 +371,95 @@ func SendSingleEmailHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Email sent successfully"})
+}
+
+// EnrichDatabaseHandler triggers Apollo enrichment and returns the result
+func EnrichDatabaseHandler(c *gin.Context) {
+	go func() {
+		ctx := context.Background()
+		client := apollo.NewApolloClient()
+		const maxCompanies = 10
+		companiesAdded := 0
+		contactsAdded := 0
+		companiesSkipped := 0
+		contactsSkipped := 0
+		errors := 0
+
+		// Track page number for each country
+		countryPages := make(map[string]int)
+		for _, country := range constants.TargetCountries {
+			countryPages[country] = 1
+		}
+
+		for companiesAdded < maxCompanies {
+			noMoreData := true
+			for _, country := range constants.TargetCountries {
+				if companiesAdded >= maxCompanies {
+					break
+				}
+				page := countryPages[country]
+				params := apollo.CompanySearchParams{
+					Country:  country,
+					Industry: "TECH",
+					Page:     page,
+					PerPage:  5,
+				}
+				companiesList, err := client.SearchCompanies(params)
+				if err != nil || len(companiesList) == 0 {
+					continue // skip to next country
+				}
+				noMoreData = false
+				countryPages[country]++ // next time, fetch next page
+				for _, company := range companiesList {
+					if companiesAdded >= maxCompanies {
+						break
+					}
+					companyID, err := companies.InsertIfNotExists(ctx, companies.CompanyForSet{
+						ID:             uuid.New().String(),
+						Status:         companies.StatusActive,
+						Name:           company.Name,
+						Website:        company.Website,
+						Industry:       company.Industry,
+						SubIndustry:    "",
+						TechDetails:    "",
+						CompanyDetails: "",
+						Metadata:       MarshalMetadata(company.Metadata),
+					})
+					if err != nil {
+						companiesSkipped++
+						continue
+					}
+					companiesAdded++
+					// Fetch and insert contacts for this company
+					contactsList, err := client.SearchContacts(company.ID)
+					if err != nil {
+						continue
+					}
+					for _, contact := range contactsList {
+						_, err := contacts.InsertIfNotExists(ctx, contacts.ContactForSet{
+							ID:          uuid.New().String(),
+							CompanyID:   companyID,
+							Status:      contacts.StatusActive,
+							Name:        contact.Name,
+							EmailID:     contact.Email,
+							PhoneNumber: "",
+							LinkedInURL: contact.LinkedIn,
+							Role:        contact.Role,
+							Metadata:    MarshalMetadata(contact.Metadata),
+						})
+						if err != nil {
+							contactsSkipped++
+							continue
+						}
+						contactsAdded++
+					}
+				}
+			}
+			if noMoreData {
+				break // all countries exhausted
+			}
+		}
+		LogEnrichmentSummary(companiesAdded, companiesSkipped, contactsAdded, contactsSkipped, errors)
+	}()
+	c.JSON(http.StatusAccepted, gin.H{"message": "Enrichment started. Check logs for progress."})
 }
