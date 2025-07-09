@@ -114,7 +114,7 @@ func (c *OpenAIClient) GenerateEmail(prompt string) (string, error) {
 
 	if len(completionResp.Choices) == 0 {
 		log.Println("error: no choices returned from OpenAI")
-		return "", fmt.Errorf("no choices returned from OpenAI")
+		return "", fmt.Errorf("no choices returned from OpenAIII")
 	}
 
 	return completionResp.Choices[0].Message.Content, nil
