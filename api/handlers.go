@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"time"
 
+	"cold_emailer/dbmodels/contacts"
+	"cold_emailer/dbmodels/email_logs"
 	"cold_emailer/gmail"
 	"cold_emailer/openai"
 
@@ -382,4 +384,171 @@ func EnrichDatabaseHandler(c *gin.Context) {
 		log.Println("Enrichment complete")
 	}()
 	c.JSON(http.StatusAccepted, gin.H{"message": "Enrichment started. Check logs for progress."})
+}
+
+// SendFewInitialEmailsRequest is the request body for sending initial emails
+type SendFewInitialEmailsRequest struct {
+	Count  int    `json:"count" binding:"min=1,max=50"`
+	Status string `json:"status,omitempty"` // Optional status filter for contacts
+}
+
+// SendFewInitialEmailsResponse is the response for the initial emails endpoint
+type SendFewInitialEmailsResponse struct {
+	Message string `json:"message"`
+	Count   int    `json:"count"`
+}
+
+// SendFewInitialEmailsHandler sends initial emails to contacts
+func SendFewInitialEmailsHandler(c *gin.Context) {
+	var req SendFewInitialEmailsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Set default count if not provided
+	if req.Count == 0 {
+		req.Count = 10
+	}
+
+	// Set default status if not provided
+	if req.Status == "" {
+		req.Status = contacts.StatusActive
+	}
+
+	// Start email sending in goroutine
+	go func() {
+		ctx := context.Background()
+		log.Printf("Starting to send %d initial emails to contacts with status: %s", req.Count, req.Status)
+
+		// Step 2 - Fetch contacts with company info
+		contactsList, err := contacts.GetContactsWithCompanyInfo(ctx, req.Count, req.Status, "")
+		if err != nil {
+			log.Printf("ERROR: Failed to fetch contacts: %v", err)
+			return
+		}
+
+		log.Printf("Found %d contacts to send emails to", len(contactsList))
+
+		// Get profile info for email generation
+		profile, err := profileinfo.GetLatestActive(ctx)
+		if err != nil {
+			log.Printf("ERROR: Failed to get profile info: %v", err)
+			return
+		}
+
+		// Get Gmail token
+		token, err := gmailtokens.GetLatestToken(ctx)
+		if err != nil {
+			log.Printf("ERROR: Failed to get Gmail token: %v", err)
+			return
+		}
+
+		from := token.EmailID
+		if from == "me" {
+			from = profile.Email // Use profile email as fallback
+		}
+
+		// Initialize OpenAI client
+		openaiClient := openai.NewOpenAIClient()
+
+		// Track results
+		emailsGenerated := 0
+		emailsSent := 0
+		emailsFailed := 0
+
+		// Process each contact
+		for _, contact := range contactsList {
+			log.Printf("Processing contact: %s (%s) at %s", contact.ContactName, contact.ContactEmail, contact.CompanyName)
+
+			// Step 3: Generate personalized email
+			emailData := openai.EmailGenerationData{
+				ContactName:       contact.ContactName,
+				ContactRole:       contact.ContactRole,
+				ContactLinkedIn:   contact.ContactLinkedIn,
+				CompanyName:       contact.CompanyName,
+				CompanyWebsite:    contact.CompanyWebsite,
+				CompanyIndustry:   contact.CompanyIndustry,
+				ProfileName:       profile.Name,
+				ProfileExperience: profile.Experience,
+				ProfileSkills:     profile.Skills,
+				ProfileSummary:    profile.Summary,
+			}
+
+			subject, body, err := openaiClient.GeneratePersonalizedEmail(emailData)
+			if err != nil {
+				log.Printf("ERROR: Failed to generate email for %s: %v", contact.ContactEmail, err)
+				emailsFailed++
+				continue
+			}
+
+			emailsGenerated++
+			log.Printf("Generated email for %s: %s", contact.ContactEmail, subject)
+
+			// Log GENERATED stage
+			metadata := map[string]interface{}{
+				"contact_name": contact.ContactName,
+				"contact_role": contact.ContactRole,
+				"company_name": contact.CompanyName,
+				"generated_at": time.Now().Format(time.RFC3339),
+			}
+
+			if err := email_logs.LogGenerated(ctx, contact.ContactID, contact.CompanyID, subject, body, metadata); err != nil {
+				log.Printf("ERROR: Failed to log GENERATED stage for %s: %v", contact.ContactEmail, err)
+			}
+
+			// Step 4: Send email with resume
+			if profile.ResumePath == "" {
+				log.Printf("WARNING: No resume path found for profile, sending without attachment")
+				err = gmail.SendSingleEmail(ctx, token.AccessToken, from, contact.ContactEmail, subject, body)
+			} else {
+				err = gmail.SendEmailWithAttachment(ctx, token.AccessToken, from, contact.ContactEmail, subject, body, profile.ResumePath)
+			}
+
+			if err != nil {
+				log.Printf("ERROR: Failed to send email to %s: %v", contact.ContactEmail, err)
+				emailsFailed++
+
+				// Log ERROR stage
+				errorMetadata := map[string]interface{}{
+					"contact_name": contact.ContactName,
+					"contact_role": contact.ContactRole,
+					"company_name": contact.CompanyName,
+					"error_at":     time.Now().Format(time.RFC3339),
+					"error_type":   "send_failed",
+				}
+
+				if logErr := email_logs.LogError(ctx, contact.ContactID, contact.CompanyID, subject, body, err.Error(), errorMetadata); logErr != nil {
+					log.Printf("ERROR: Failed to log ERROR stage for %s: %v", contact.ContactEmail, logErr)
+				}
+				continue
+			}
+
+			emailsSent++
+			log.Printf("SUCCESS: Sent email to %s (%s)", contact.ContactEmail, subject)
+
+			// Log SENT stage
+			sentMetadata := map[string]interface{}{
+				"contact_name":    contact.ContactName,
+				"contact_role":    contact.ContactRole,
+				"company_name":    contact.CompanyName,
+				"sent_at":         time.Now().Format(time.RFC3339),
+				"resume_attached": profile.ResumePath != "",
+			}
+
+			if err := email_logs.LogSent(ctx, contact.ContactID, contact.CompanyID, subject, body, sentMetadata); err != nil {
+				log.Printf("ERROR: Failed to log SENT stage for %s: %v", contact.ContactEmail, err)
+			}
+
+			// Small delay to avoid rate limiting
+			time.Sleep(2 * time.Second)
+		}
+
+		log.Printf("Email sending completed: %d generated, %d sent, %d failed", emailsGenerated, emailsSent, emailsFailed)
+	}()
+
+	c.JSON(http.StatusAccepted, SendFewInitialEmailsResponse{
+		Message: "Email sending started. Check logs for progress.",
+		Count:   req.Count,
+	})
 }

@@ -53,3 +53,77 @@ func InsertIfNotExists(ctx context.Context, c ContactForSet) (string, error) {
 	}
 	return c.ID, nil
 }
+
+// ContactWithCompany represents a contact with company information
+type ContactWithCompany struct {
+	ContactID       string
+	ContactName     string
+	ContactEmail    string
+	ContactRole     string
+	ContactLinkedIn string
+	ContactPhone    string
+	ContactStatus   string
+	CompanyID       string
+	CompanyName     string
+	CompanyWebsite  string
+	CompanyIndustry string
+}
+
+// GetContactsWithCompanyInfo fetches contacts with their company information, excluding those with SENT emails
+func GetContactsWithCompanyInfo(ctx context.Context, count int, status, orderBy string) ([]ContactWithCompany, error) {
+	if orderBy == "" {
+		orderBy = "c.created_at DESC"
+	}
+
+	query := `
+		SELECT 
+			c.id as contact_id,
+			c.name as contact_name,
+			c.email_id as contact_email,
+			c.role as contact_role,
+			c.linkedin_url as contact_linkedin,
+			c.phone_number as contact_phone,
+			c.status as contact_status,
+			comp.id as company_id,
+			comp.name as company_name,
+			comp.website as company_website,
+			comp.industry as company_industry
+		FROM contacts c
+		JOIN companies comp ON c.company_id = comp.id
+		LEFT JOIN email_logs el ON c.id = el.contact_id AND el.email_stage = 'SENT'
+		WHERE c.status = $1
+		AND el.id IS NULL
+		ORDER BY ` + orderBy + `
+		LIMIT $2
+	`
+
+	rows, err := db.GetDB().QueryContext(ctx, query, status, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var contacts []ContactWithCompany
+	for rows.Next() {
+		var contact ContactWithCompany
+		err := rows.Scan(
+			&contact.ContactID,
+			&contact.ContactName,
+			&contact.ContactEmail,
+			&contact.ContactRole,
+			&contact.ContactLinkedIn,
+			&contact.ContactPhone,
+			&contact.ContactStatus,
+			&contact.CompanyID,
+			&contact.CompanyName,
+			&contact.CompanyWebsite,
+			&contact.CompanyIndustry,
+		)
+		if err != nil {
+			return nil, err
+		}
+		contacts = append(contacts, contact)
+	}
+
+	return contacts, nil
+}

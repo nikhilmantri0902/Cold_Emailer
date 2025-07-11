@@ -59,6 +59,7 @@ func main() {
 	apiRoutes.POST("/send-email", api.SendEmailHandler)
 	apiRoutes.POST("/send-single-email", api.SendSingleEmailHandler)
 	apiRoutes.POST("/enrich-database", api.EnrichDatabaseHandler)
+	apiRoutes.POST("/send-few-initial-emails", api.SendFewInitialEmailsHandler)
 	apiRoutes.GET("/status", api.StatusHandler)
 	apiRoutes.GET("/logs", api.LogsHandler)
 

@@ -147,6 +147,10 @@ func EnrichContactsForOrganizationID(ctx context.Context, apolloOrganizationID, 
 					return err
 				}
 				log.Println("enriched email:", enrichContactResp.Person.Email)
+				if enrichContactResp.Person.Email == "" {
+					log.Println("enriched email is empty, skipping this person")
+					continue
+				}
 				fetchedPerson.Email = enrichContactResp.Person.Email
 			}
 

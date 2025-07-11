@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"net/mail"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -86,5 +88,78 @@ func SendSingleEmail(ctx context.Context, accessToken, from, to, subject, body s
 		log.Println("error:", err)
 		return fmt.Errorf("failed to send email: %w", err)
 	}
+	return nil
+}
+
+// SendEmailWithAttachment sends an email with resume attachment using Gmail API
+func SendEmailWithAttachment(ctx context.Context, accessToken, from, to, subject, body, resumePath string) error {
+	// Read resume file
+	resumeData, err := os.ReadFile(resumePath)
+	if err != nil {
+		return fmt.Errorf("failed to read resume file: %w", err)
+	}
+
+	// Get file extension for MIME type
+	ext := strings.ToLower(filepath.Ext(resumePath))
+	var mimeType string
+	switch ext {
+	case ".pdf":
+		mimeType = "application/pdf"
+	case ".doc":
+		mimeType = "application/msword"
+	case ".docx":
+		mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	default:
+		mimeType = "application/octet-stream"
+	}
+
+	// Create email with attachment
+	boundary := "boundary123"
+	var emailBuilder strings.Builder
+
+	// Email headers
+	emailBuilder.WriteString(fmt.Sprintf("From: %s\r\n", from))
+	emailBuilder.WriteString(fmt.Sprintf("To: %s\r\n", to))
+	emailBuilder.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
+	emailBuilder.WriteString(fmt.Sprintf("MIME-Version: 1.0\r\n"))
+	emailBuilder.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=%s\r\n", boundary))
+	emailBuilder.WriteString("\r\n")
+
+	// Email body
+	emailBuilder.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	emailBuilder.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	emailBuilder.WriteString("\r\n")
+	emailBuilder.WriteString(body)
+	emailBuilder.WriteString("\r\n")
+
+	// Resume attachment
+	emailBuilder.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	emailBuilder.WriteString(fmt.Sprintf("Content-Type: %s; name=\"resume%s\"\r\n", mimeType, ext))
+	emailBuilder.WriteString("Content-Transfer-Encoding: base64\r\n")
+	emailBuilder.WriteString(fmt.Sprintf("Content-Disposition: attachment; filename=\"resume%s\"\r\n", ext))
+	emailBuilder.WriteString("\r\n")
+	emailBuilder.WriteString(base64.StdEncoding.EncodeToString(resumeData))
+	emailBuilder.WriteString("\r\n")
+
+	// End boundary
+	emailBuilder.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
+
+	raw := base64.URLEncoding.EncodeToString([]byte(emailBuilder.String()))
+
+	// Create Gmail service
+	svc, err := gmail.NewService(ctx, option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{
+		AccessToken: accessToken,
+		Expiry:      time.Now().Add(time.Hour),
+	})))
+	if err != nil {
+		return fmt.Errorf("failed to create Gmail service: %w", err)
+	}
+
+	// Send the message
+	_, err = svc.Users.Messages.Send("me", &gmail.Message{Raw: raw}).Do()
+	if err != nil {
+		return fmt.Errorf("failed to send email: %w", err)
+	}
+
 	return nil
 }
