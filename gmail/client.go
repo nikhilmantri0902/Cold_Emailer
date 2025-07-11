@@ -43,9 +43,7 @@ func ExchangeCode(ctx context.Context, code string) (*oauth2.Token, error) {
 	config := GetOAuth2Config()
 	tok, err := config.Exchange(ctx, code)
 	if err != nil {
-
 		log.Println("error:", err)
-
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
 	return tok, nil

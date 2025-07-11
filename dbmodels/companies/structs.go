@@ -2,6 +2,7 @@ package companies
 
 type Company struct {
 	ID             string `db:"id"`
+	ApolloID       string `db:"apollo_id"`
 	CreatedAt      string `db:"created_at"`
 	Status         string `db:"status"`
 	Name           string `db:"name"`
@@ -15,6 +16,7 @@ type Company struct {
 
 type CompanyForSet struct {
 	ID             string
+	ApolloID       string
 	Status         string
 	Name           string
 	Website        string

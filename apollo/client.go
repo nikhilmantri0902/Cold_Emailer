@@ -1,12 +1,13 @@
 package apollo
 
 import (
+	"bytes"
 	"cold_emailer/constants"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
-	"net/url"
-	"strings"
 )
 
 // ApolloClient handles requests to the Apollo API
@@ -20,139 +21,97 @@ func NewApolloClient() *ApolloClient {
 	return &ApolloClient{APIKey: apiKey}
 }
 
-// CompanySearchParams defines parameters for company search
-// (expand as needed)
-type CompanySearchParams struct {
-	Country  string
-	Industry string
-	Page     int
-	PerPage  int
-}
-
-// Company represents a company from Apollo API
-// (expand as needed)
-type Company struct {
-	ID       string                 `json:"id"`
-	Name     string                 `json:"name"`
-	Website  string                 `json:"website"`
-	Industry string                 `json:"industry"`
-	Metadata map[string]interface{} `json:"-"` // Store raw Apollo data
-}
-
-// Contact represents a contact from Apollo API
-// (expand as needed)
-type Contact struct {
-	ID       string                 `json:"id"`
-	Name     string                 `json:"name"`
-	Email    string                 `json:"email"`
-	Role     string                 `json:"title"`
-	LinkedIn string                 `json:"linkedin_url"`
-	Metadata map[string]interface{} `json:"-"`
-}
-
-// SearchCompanies fetches companies from Apollo API (stub)
-func (c *ApolloClient) SearchCompanies(params CompanySearchParams) ([]Company, error) {
-	baseURL := "https://api.apollo.io/v1/organizations/search"
-	query := url.Values{}
-	query.Set("api_key", c.APIKey)
-	query.Set("q_organization_countries", params.Country)
-	if params.Industry != "" {
-		query.Set("q_organization_industries", params.Industry)
-	}
-	query.Set("page", fmt.Sprintf("%d", params.Page))
-	query.Set("per_page", fmt.Sprintf("%d", params.PerPage))
-
-	fullURL := fmt.Sprintf("%s?%s", baseURL, query.Encode())
-	resp, err := http.Get(fullURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to call Apollo company search: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Apollo company search failed: %s", resp.Status)
-	}
-
-	var result struct {
-		Organizations []map[string]interface{} `json:"organizations"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode Apollo company search response: %w", err)
-	}
-
-	companies := make([]Company, 0, len(result.Organizations))
-	for _, org := range result.Organizations {
-		company := Company{
-			Metadata: org,
-		}
-		if id, ok := org["id"].(string); ok {
-			company.ID = id
-		}
-		if name, ok := org["name"].(string); ok {
-			company.Name = name
-		}
-		if website, ok := org["website_url"].(string); ok {
-			company.Website = website
-		}
-		if industry, ok := org["industry"].(string); ok {
-			company.Industry = industry
-		}
-		companies = append(companies, company)
-	}
-	return companies, nil
-}
-
 // SuitableRoles is a helper for filtering contacts
-var SuitableRoles = []string{"HR", "Recruiter", "CTO", "Tech Lead", "Technical Recruiter", "Talent Acquisition"}
+var SuitableRoles = []string{"HR", "Recruiter", "Technical Recruiter", "Talent Acquisition"}
 
-func (c *ApolloClient) SearchContacts(companyID string) ([]Contact, error) {
-	baseURL := "https://api.apollo.io/v1/people/search"
-	query := url.Values{}
-	query.Set("api_key", c.APIKey)
-	query.Set("q_organization_ids", companyID)
-	query.Set("per_page", "10")
-	query.Set("page", "1")
-	query.Set("q_titles", strings.Join(SuitableRoles, ","))
+// SearchContacts uses the POST /api/v1/mixed_people/search endpoint
+func (c *ApolloClient) SearchContacts(req MixedPeopleSearchRequest) (mixedPeopleSearchResp MixedPeopleSearchResp, err error) {
+	url := "https://api.apollo.io/api/v1/mixed_people/search"
+	body, _ := json.Marshal(req)
+	httpReq, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("accept", "application/json")
+	httpReq.Header.Set("x-api-key", c.APIKey)
 
-	fullURL := fmt.Sprintf("%s?%s", baseURL, query.Encode())
-	resp, err := http.Get(fullURL)
+	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call Apollo contact search: %w", err)
+		log.Printf("error: %v", err)
+		return mixedPeopleSearchResp, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Apollo contact search failed: %s", resp.Status)
+		b, _ := io.ReadAll(resp.Body)
+		log.Printf("Apollo error: %s", string(b))
+		return mixedPeopleSearchResp, fmt.Errorf("Apollo contact search failed: %s", resp.Status)
 	}
 
-	var result struct {
-		People []map[string]interface{} `json:"people"`
-	}
+	var result MixedPeopleSearchResp
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode Apollo contact search response: %w", err)
+		log.Printf("error: %v", err)
+		return mixedPeopleSearchResp, err
 	}
 
-	contacts := make([]Contact, 0, len(result.People))
-	for _, p := range result.People {
-		contact := Contact{
-			Metadata: p,
-		}
-		if id, ok := p["id"].(string); ok {
-			contact.ID = id
-		}
-		if name, ok := p["name"].(string); ok {
-			contact.Name = name
-		}
-		if email, ok := p["email"].(string); ok {
-			contact.Email = email
-		}
-		if title, ok := p["title"].(string); ok {
-			contact.Role = title
-		}
-		if linkedin, ok := p["linkedin_url"].(string); ok {
-			contact.LinkedIn = linkedin
-		}
-		contacts = append(contacts, contact)
+	return result, nil
+}
+
+// EnrichContactByApolloID uses the POST /api/v1/people/match endpoint
+func (c *ApolloClient) EnrichContactByApolloID(req PersonMatchRequest) (personMatchResp PersonMatchResponse, err error) {
+	url := "https://api.apollo.io/api/v1/people/match"
+	body, _ := json.Marshal(req)
+	httpReq, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("accept", "application/json")
+	httpReq.Header.Set("x-api-key", c.APIKey)
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		log.Printf("error: %v", err)
+		return personMatchResp, err
 	}
-	return contacts, nil
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		log.Printf("Apollo error: %s", string(b))
+		return personMatchResp, fmt.Errorf("Apollo person match failed: %s", resp.Status)
+	}
+
+	var result PersonMatchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Printf("error: %v", err)
+		return personMatchResp, err
+	}
+
+	return result, nil
+}
+
+// SearchCompaniesMixed uses the new POST /api/v1/mixed_companies/search endpoint
+func (c *ApolloClient) SearchCompaniesMixed(req MixedCompanySearchRequest) (mixedCompanyResp MixedCompanySearchResp, err error) {
+	url := "https://api.apollo.io/api/v1/mixed_companies/search"
+	body, _ := json.Marshal(req)
+	httpReq, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("accept", "application/json")
+	httpReq.Header.Set("x-api-key", c.APIKey)
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		log.Println("error:", err)
+		return mixedCompanyResp, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		log.Printf("Apollo error: %s", string(b))
+		return mixedCompanyResp, fmt.Errorf("Apollo company search failed: %s", resp.Status)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&mixedCompanyResp); err != nil {
+		log.Println("error:", err)
+		return mixedCompanyResp, err
+	}
+
+	return mixedCompanyResp, nil
 }

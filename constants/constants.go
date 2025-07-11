@@ -25,8 +25,9 @@ var (
 	RESUME_CATEGORY = "resumes"
 	PG_DB_URL       = fmt.Sprintf("postgres://%s:%s@db:5432/%s?sslmode=disable", "coldemailer", "coldemailer", "coldemailer")
 	TargetCountries = []string{
-		"Germany", "Netherlands", "Canada", "Sweden", "Finland", "Norway", "Ireland", "United Kingdom", "Luxembourg", "United Arab Emirates", "Singapore", "Australia",
-	}
+		"Germany", "Netherlands", "Canada", "Sweden", "Finland", "Norway", "Ireland", "United Kingdom", "Luxembourg", "United Arab Emirates", "Singapore", "Australia"}
+	// SuitableRoles is a helper for filtering contacts
+	SuitableRoles = []string{"CTO", "Talent Acquisition", "Technical Recruiter", "Product Manager"}
 )
 
 var ()

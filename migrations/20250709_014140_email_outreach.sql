@@ -10,4 +10,4 @@ CREATE TABLE if not exists email_logs(
     attachment_details jsonb,
     error_message TEXT,
     metadata jsonb
-)
+);

@@ -2,6 +2,7 @@ package contacts
 
 type Contact struct {
 	ID          string `db:"id"`
+	ApolloID    string `db:"apollo_id"`
 	CreatedAt   string `db:"created_at"`
 	CompanyID   string `db:"company_id"`
 	Status      string `db:"status"`
@@ -15,6 +16,7 @@ type Contact struct {
 
 type ContactForSet struct {
 	ID          string
+	ApolloID    string
 	CompanyID   string
 	Status      string
 	Name        string
