@@ -164,6 +164,10 @@ INSTRUCTIONS:
 5. Include a clear call-to-action
 6. Make it sound natural and not overly salesy
 7. Show enthusiasm for their company and role
+8. Also highlight how I am from IIT Kharagpur, a top tier Indian Engineering college.
+9. Make it in more words about company's tech and my alignment with them, you get it.
+10. Note that I am applying for a senior software engineer position only.
+11. Go upto 300 words.
 
 Generate both a compelling subject line and the email body.
 `,
