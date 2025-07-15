@@ -374,7 +374,7 @@ func EnrichDatabaseHandler(c *gin.Context) {
 		maxContactsPerCompany = 100
 	}
 
-	log.Println()
+	log.Println("company_count:", companyCount, "max_contacts_per_company", maxContactsPerCompany)
 	go func() {
 		err := EnrichDBWithCompaniesAndContacts(context.Background(), companyCount, maxContactsPerCompany)
 		if err != nil {
