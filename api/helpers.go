@@ -64,16 +64,22 @@ func EnrichDBWithCompaniesAndContacts(ctx context.Context, countNewCompanies, ma
 				continue
 			}
 
+			apolloCompanyDetailsResp, err := client.GetOrganizationDetails(fetchedCompany.OrganizationID)
+			if err != nil {
+				log.Println("error:", err)
+				return err
+			}
+
 			dbCompanyID, err := companies.InsertIfNotExists(ctx, companies.CompanyForSet{
 				ID:             uuid.New().String(),
 				ApolloID:       fetchedCompany.OrganizationID,
 				Status:         companies.StatusActive,
 				Name:           fetchedCompany.Name,
 				Website:        fetchedCompany.WebsiteURL,
-				Industry:       "TECH",
+				Industry:       apolloCompanyDetailsResp.Organization.Industry,
 				SubIndustry:    "",
-				TechDetails:    "",
-				CompanyDetails: "",
+				TechDetails:    apolloCompanyDetailsResp.Organization.StringifyTechnologyArray(),
+				CompanyDetails: apolloCompanyDetailsResp.Organization.ShortDescription,
 				Metadata:       "{}",
 			})
 
@@ -249,6 +255,8 @@ func GenerateAndSendEmails(ctx context.Context, count int, status string) (err e
 			CompanyName:       contact.CompanyName,
 			CompanyWebsite:    contact.CompanyWebsite,
 			CompanyIndustry:   contact.CompanyIndustry,
+			CompanyDetails:    contact.CompanyDetails,
+			CompanyTechStack:  contact.CompanyTech,
 			ProfileName:       profile.Name,
 			ProfileExperience: profile.Experience,
 			ProfileSkills:     profile.Skills,

@@ -61,6 +61,8 @@ type EmailGenerationData struct {
 	CompanyName       string
 	CompanyWebsite    string
 	CompanyIndustry   string
+	CompanyDetails    string
+	CompanyTechStack  string
 	ProfileName       string
 	ProfileExperience string
 	ProfileSkills     string
@@ -149,6 +151,8 @@ COMPANY INFORMATION:
 - Company Name: %s
 - Website: %s
 - Industry: %s
+- Company Details: %s
+- Company Tech Stack: %s
 
 MY PROFILE:
 - Name: %s
@@ -172,7 +176,7 @@ INSTRUCTIONS:
 Generate both a compelling subject line and the email body.
 `,
 		data.ContactName, data.ContactRole, data.ContactLinkedIn,
-		data.CompanyName, data.CompanyWebsite, data.CompanyIndustry,
+		data.CompanyName, data.CompanyWebsite, data.CompanyIndustry, data.CompanyDetails, data.CompanyTechStack,
 		data.ProfileName, data.ProfileExperience, data.ProfileSkills, data.ProfileSummary)
 
 	url := "https://api.openai.com/v1/chat/completions"

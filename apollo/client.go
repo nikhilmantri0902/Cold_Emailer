@@ -112,3 +112,33 @@ func (c *ApolloClient) SearchCompaniesMixed(req MixedCompanySearchRequest) (mixe
 
 	return mixedCompanyResp, nil
 }
+
+// GetOrganizationDetails fetches organization details by ID from Apollo
+func (c *ApolloClient) GetOrganizationDetails(organizationID string) (ApolloOrgDetailResponse, error) {
+	var respStruct ApolloOrgDetailResponse
+	url := fmt.Sprintf("https://api.apollo.io/api/v1/organizations/%s", organizationID)
+	httpReq, _ := http.NewRequest("GET", url, nil)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("accept", "application/json")
+	httpReq.Header.Set("x-api-key", c.APIKey)
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		log.Printf("error: %v", err)
+		return respStruct, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		log.Printf("Apollo error: %s", string(b))
+		return respStruct, fmt.Errorf("Apollo organization fetch failed: %s", resp.Status)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&respStruct); err != nil {
+		log.Printf("error: %v", err)
+		return respStruct, err
+	}
+
+	return respStruct, nil
+}
