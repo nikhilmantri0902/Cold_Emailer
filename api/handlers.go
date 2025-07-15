@@ -357,9 +357,24 @@ func SendSingleEmailHandler(c *gin.Context) {
 
 // EnrichDatabaseHandler triggers Apollo enrichment and returns the result
 func EnrichDatabaseHandler(c *gin.Context) {
-	companyCount := 10
-	maxContactsPerCompany := 100
+	var req struct {
+		CompanyCount          int `json:"company_count" binding:"min=1,max=100"`
+		MaxContactsPerCompany int `json:"max_contacts_per_company" binding:"min=1,max=1000"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	companyCount := req.CompanyCount
+	if companyCount == 0 {
+		companyCount = 10
+	}
+	maxContactsPerCompany := req.MaxContactsPerCompany
+	if maxContactsPerCompany == 0 {
+		maxContactsPerCompany = 100
+	}
 
+	log.Println()
 	go func() {
 		err := EnrichDBWithCompaniesAndContacts(context.Background(), companyCount, maxContactsPerCompany)
 		if err != nil {
