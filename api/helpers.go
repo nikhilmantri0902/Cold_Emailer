@@ -336,3 +336,46 @@ func GenerateAndSendEmails(ctx context.Context, count int, status string) (err e
 
 	return nil
 }
+
+func BackFillCompanyDetailsFunc(ctx context.Context) (err error) {
+	client := apollo.NewApolloClient()
+	log.Println("fetching companies from db")
+	arrCompanies, err := companies.GetAll(ctx)
+	if err != nil {
+		log.Println("err:", err)
+		return err
+	}
+
+	log.Println("fetching details for each company")
+	for _, arrCompany := range arrCompanies {
+
+		if arrCompany.ApolloID == "" {
+			log.Printf("for company: %s, apollo_id is empty, skipping backfill details", arrCompany.Name)
+			continue
+		}
+
+		log.Println("fetching details for company:", arrCompany.Name, arrCompany.ApolloID)
+
+		time.Sleep(1 * time.Second)
+		apolloOrgDetailsResp, err := client.GetOrganizationDetails(arrCompany.ApolloID)
+		if err != nil {
+			log.Println("err:", err)
+			return err
+		}
+
+		techDetails := apolloOrgDetailsResp.Organization.StringifyTechnologyArray()
+		err = companies.Update(ctx, companies.UpdateInput{
+			ID:             arrCompany.ID,
+			Industry:       &apolloOrgDetailsResp.Organization.Industry,
+			TechDetails:    &techDetails,
+			CompanyDetails: &apolloOrgDetailsResp.Organization.ShortDescription,
+		})
+		if err != nil {
+			log.Println("err:", err)
+			return err
+		}
+	}
+
+	log.Println("backfill complete")
+	return nil
+}

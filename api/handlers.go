@@ -1,9 +1,7 @@
 package api
 
 import (
-	"cold_emailer/apollo"
 	"cold_emailer/constants"
-	"cold_emailer/dbmodels/companies"
 	"cold_emailer/dbmodels/gmailtokens"
 	"cold_emailer/dbmodels/profileinfo"
 	"cold_emailer/storage"
@@ -359,62 +357,29 @@ func SendSingleEmailHandler(c *gin.Context) {
 
 // EnrichDatabaseHandler triggers Apollo enrichment and returns the result
 func EnrichDatabaseHandler(c *gin.Context) {
+	companyCount := 10
+	maxContactsPerCompany := 100
+
 	go func() {
-		err := EnrichDBWithCompaniesAndContacts(context.Background(), 10, 100)
+		err := EnrichDBWithCompaniesAndContacts(context.Background(), companyCount, maxContactsPerCompany)
 		if err != nil {
 			log.Println("err:", err)
 			return
 		}
-
 		log.Println("Enrichment complete")
 	}()
+
 	c.JSON(http.StatusAccepted, gin.H{"message": "Enrichment started. Check logs for progress."})
 }
 
 // EnrichDatabaseHandler triggers Apollo enrichment and returns the result
 func BackfillCompanyDetails(c *gin.Context) {
 	go func() {
-		client := apollo.NewApolloClient()
-		ctx := context.Background()
-		log.Println("fetching companies from db")
-		arrCompanies, err := companies.GetAll(ctx)
+		err := BackFillCompanyDetailsFunc(context.Background())
 		if err != nil {
 			log.Println("err:", err)
 			return
 		}
-
-		log.Println("fetching details for each company")
-		for _, arrCompany := range arrCompanies {
-
-			if arrCompany.ApolloID == "" {
-				log.Printf("for company: %s, apollo_id is empty, skipping backfill details", arrCompany.Name)
-				continue
-			}
-
-			log.Println("fetching details for company:", arrCompany.Name, arrCompany.ApolloID)
-
-			time.Sleep(1 * time.Second)
-			apolloOrgDetailsResp, err := client.GetOrganizationDetails(arrCompany.ApolloID)
-			if err != nil {
-				log.Println("err:", err)
-				return
-			}
-
-			techDetails := apolloOrgDetailsResp.Organization.StringifyTechnologyArray()
-			err = companies.Update(ctx, companies.UpdateInput{
-				ID:             arrCompany.ID,
-				Industry:       &apolloOrgDetailsResp.Organization.Industry,
-				TechDetails:    &techDetails,
-				CompanyDetails: &apolloOrgDetailsResp.Organization.ShortDescription,
-			})
-			if err != nil {
-				log.Println("err:", err)
-				return
-			}
-		}
-
-		log.Println("backfill complete")
-
 	}()
 	c.JSON(http.StatusAccepted, gin.H{"message": "Backfilling started. Check logs for progress."})
 }

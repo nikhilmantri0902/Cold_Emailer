@@ -5,6 +5,7 @@ import (
 	"cold_emailer/utils"
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 )
 
@@ -27,7 +28,9 @@ type UpdateInput struct {
 // Returns sql.ErrNoRows if the company does not exist.
 func Update(ctx context.Context, input UpdateInput) error {
 	if input.ID == "" {
-		return sql.ErrNoRows
+		err := errors.New("id is not provided for update")
+		log.Println("err:", err)
+		return err
 	}
 
 	setClauses := []string{}
