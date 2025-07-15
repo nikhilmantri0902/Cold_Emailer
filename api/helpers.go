@@ -5,9 +5,15 @@ import (
 	"cold_emailer/constants"
 	"cold_emailer/dbmodels/companies"
 	"cold_emailer/dbmodels/contacts"
+	"cold_emailer/dbmodels/email_logs"
+	"cold_emailer/dbmodels/gmailtokens"
+	"cold_emailer/dbmodels/profileinfo"
+	"cold_emailer/gmail"
+	"cold_emailer/openai"
 	"context"
 	"log"
 	"math"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -190,6 +196,135 @@ func EnrichContactsForOrganizationID(ctx context.Context, apolloOrganizationID, 
 		}
 		pageNum++
 	}
+
+	return nil
+}
+
+func GenerateAndSendEmails(ctx context.Context, count int, status string) (err error) {
+	// Get Gmail token
+	token, err := gmailtokens.GetLatestToken(ctx)
+	if err != nil {
+		log.Println("error:", err)
+		return err
+	}
+
+	// Step 2 - Fetch contacts with company info
+	contactsList, err := contacts.GetContactsWithCompanyInfo(ctx, count, status, "")
+	if err != nil {
+		log.Printf("ERROR: Failed to fetch contacts: %v", err)
+		return err
+	}
+
+	log.Printf("Found %d contacts to send emails to", len(contactsList))
+
+	// Get profile info for email generation
+	profile, err := profileinfo.GetLatestActive(ctx)
+	if err != nil {
+		log.Printf("ERROR: Failed to get profile info: %v", err)
+		return err
+	}
+
+	from := token.EmailID
+	if from == "me" {
+		from = profile.Email // Use profile email as fallback
+	}
+
+	// Initialize OpenAI client
+	openaiClient := openai.NewOpenAIClient()
+
+	// Track results
+	emailsGenerated := 0
+	emailsSent := 0
+	emailsFailed := 0
+
+	// Process each contact
+	for _, contact := range contactsList {
+		log.Printf("Processing contact: %s (%s) at %s", contact.ContactName, contact.ContactEmail, contact.CompanyName)
+
+		// Step 3: Generate personalized email
+		emailData := openai.EmailGenerationData{
+			ContactName:       contact.ContactName,
+			ContactRole:       contact.ContactRole,
+			ContactLinkedIn:   contact.ContactLinkedIn,
+			CompanyName:       contact.CompanyName,
+			CompanyWebsite:    contact.CompanyWebsite,
+			CompanyIndustry:   contact.CompanyIndustry,
+			ProfileName:       profile.Name,
+			ProfileExperience: profile.Experience,
+			ProfileSkills:     profile.Skills,
+			ProfileSummary:    profile.Summary,
+		}
+
+		subject, body, err := openaiClient.GeneratePersonalizedEmail(emailData)
+		if err != nil {
+			log.Printf("ERROR: Failed to generate email for %s: %v", contact.ContactEmail, err)
+			emailsFailed++
+			continue
+		}
+
+		emailsGenerated++
+		log.Printf("Generated email for %s: %s", contact.ContactEmail, subject)
+
+		// Log GENERATED stage
+		metadata := map[string]interface{}{
+			"contact_name": contact.ContactName,
+			"contact_role": contact.ContactRole,
+			"company_name": contact.CompanyName,
+			"generated_at": time.Now().Format(time.RFC3339),
+		}
+
+		if err := email_logs.LogGenerated(ctx, contact.ContactID, contact.CompanyID, subject, body, metadata); err != nil {
+			log.Printf("ERROR: Failed to log GENERATED stage for %s: %v", contact.ContactEmail, err)
+		}
+
+		// Step 4: Send email with resume
+		if profile.ResumePath == "" {
+			log.Printf("WARNING: No resume path found for profile, sending without attachment")
+			err = gmail.SendSingleEmail(ctx, token.AccessToken, from, contact.ContactEmail, subject, body)
+		} else {
+			err = gmail.SendEmailWithAttachment(ctx, token.AccessToken, from, contact.ContactEmail, subject, body, profile.ResumePath)
+		}
+
+		if err != nil {
+			log.Printf("ERROR: Failed to send email to %s: %v", contact.ContactEmail, err)
+			emailsFailed++
+
+			// Log ERROR stage
+			errorMetadata := map[string]interface{}{
+				"contact_name": contact.ContactName,
+				"contact_role": contact.ContactRole,
+				"company_name": contact.CompanyName,
+				"error_at":     time.Now().Format(time.RFC3339),
+				"error_type":   "send_failed",
+			}
+
+			if logErr := email_logs.LogError(ctx, contact.ContactID, contact.CompanyID, subject, body, err.Error(), errorMetadata); logErr != nil {
+				log.Printf("ERROR: Failed to log ERROR stage for %s: %v", contact.ContactEmail, logErr)
+			}
+			continue
+		}
+
+		emailsSent++
+		log.Printf("SUCCESS: Sent email to %s (%s)", contact.ContactEmail, subject)
+
+		// Log SENT stage
+		sentMetadata := map[string]interface{}{
+			"contact_name":    contact.ContactName,
+			"contact_role":    contact.ContactRole,
+			"company_name":    contact.CompanyName,
+			"sent_at":         time.Now().Format(time.RFC3339),
+			"resume_attached": profile.ResumePath != "",
+		}
+
+		if err := email_logs.LogSent(ctx, contact.ContactID, contact.CompanyID, subject, body, sentMetadata); err != nil {
+			log.Printf("ERROR: Failed to log SENT stage for %s: %v", contact.ContactEmail, err)
+		}
+
+		// Small delay to avoid rate limiting
+		time.Sleep(2 * time.Second)
+	}
+
+	log.Printf("Email sending completed: %d generated, %d sent, %d failed", emailsGenerated, emailsSent, emailsFailed)
 
 	return nil
 }

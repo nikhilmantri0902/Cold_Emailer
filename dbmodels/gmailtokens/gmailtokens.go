@@ -4,6 +4,7 @@ import (
 	"cold_emailer/db"
 	"context"
 	"log"
+	"time"
 )
 
 type GmailTokenForSet struct {
@@ -21,6 +22,16 @@ type GmailToken struct {
 	RefreshToken string
 	Expiry       string
 	CreatedAt    string
+}
+
+// CheckExpiry returns true if expired.
+func (g *GmailToken) CheckExpiry() bool {
+	expiryTime, err := time.Parse(time.RFC3339, g.Expiry)
+	if err != nil {
+		log.Println("err:", err)
+		return true // If parsing fails, treat as expired
+	}
+	return time.Now().After(expiryTime)
 }
 
 func CreateGmailToken(ctx context.Context, t GmailTokenForSet) error {

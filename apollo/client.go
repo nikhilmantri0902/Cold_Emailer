@@ -21,9 +21,6 @@ func NewApolloClient() *ApolloClient {
 	return &ApolloClient{APIKey: apiKey}
 }
 
-// SuitableRoles is a helper for filtering contacts
-var SuitableRoles = []string{"HR", "Recruiter", "Technical Recruiter", "Talent Acquisition"}
-
 // SearchContacts uses the POST /api/v1/mixed_people/search endpoint
 func (c *ApolloClient) SearchContacts(req MixedPeopleSearchRequest) (mixedPeopleSearchResp MixedPeopleSearchResp, err error) {
 	url := "https://api.apollo.io/api/v1/mixed_people/search"
