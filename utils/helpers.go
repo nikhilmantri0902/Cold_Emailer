@@ -1,6 +1,10 @@
 package utils
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/google/uuid"
+)
 
 // joinClauses joins a slice of strings with the given separator.
 func JoinClauses(clauses []string, sep string) string {
@@ -17,4 +21,9 @@ func JoinClauses(clauses []string, sep string) string {
 // itoa converts an int to string (avoiding strconv import for this file).
 func Itoa(i int) string {
 	return fmt.Sprintf("%d", i)
+}
+
+// generateUUID generates a simple UUID-like string
+func GenerateUUID() string {
+	return uuid.New().String()
 }

@@ -4,6 +4,7 @@ import (
 	"cold_emailer/db"
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 )
 
@@ -52,23 +53,6 @@ func InsertIfNotExists(ctx context.Context, c ContactForSet) (string, error) {
 		return "", err
 	}
 	return c.ID, nil
-}
-
-// ContactWithCompany represents a contact with company information
-type ContactWithCompany struct {
-	ContactID       string `db:"contact_id"`
-	ContactName     string `db:"contact_name"`
-	ContactEmail    string `db:"contact_email"`
-	ContactRole     string `db:"contact_role"`
-	ContactLinkedIn string `db:"contact_linkedin"`
-	ContactPhone    string `db:"contact_phone"`
-	ContactStatus   string `db:"contact_status"`
-	CompanyID       string `db:"company_id"`
-	CompanyName     string `db:"company_name"`
-	CompanyWebsite  string `db:"company_website"`
-	CompanyIndustry string `db:"company_industry"`
-	CompanyTech     string `db:"tech_details"`
-	CompanyDetails  string `db:"company_details"`
 }
 
 // GetContactsWithCompanyInfo fetches contacts with their company information, excluding those with SENT emails
@@ -132,4 +116,76 @@ func GetContactsWithCompanyInfo(ctx context.Context, count int, status, orderBy 
 	}
 
 	return contacts, nil
+}
+
+// GetFollowUpCandidates fetches contacts whose latest email log is SENT, ACTIVE, and sent_at > 3 days ago
+func GetFollowUpCandidates(ctx context.Context, daysPastFirstEmail int, limit int, status string) ([]FollowUpCandidate, error) {
+	query :=
+		`SELECT
+			el.contact_id,
+			el.company_id,
+			c.name as contact_name,
+			c.email_id as contact_email,
+			c.role as contact_role,
+			c.linkedin_url as contact_linkedin,
+			c.phone_number as contact_phone,
+			c.status as contact_status,
+			comp.name as company_name,
+			comp.website as company_website,
+			comp.industry as company_industry,
+			comp.tech_details as tech_details,
+			comp.company_details as company_details,
+			el.email_subject,
+			el.email_body,
+			el.metadata
+		FROM email_logs el
+		JOIN (
+			SELECT contact_id, MAX(created_at) as max_created_at
+			FROM email_logs
+			GROUP BY contact_id
+		) latest ON el.contact_id = latest.contact_id AND el.created_at = latest.max_created_at
+		JOIN contacts c ON el.contact_id = c.id
+		JOIN companies comp ON el.company_id = comp.id
+		WHERE el.status = $1
+		  AND el.email_stage = $2
+		  AND (el.metadata->>'sent_at')::timestamp < (NOW() - INTERVAL '%d days')
+		ORDER BY (el.metadata->>'sent_at')::timestamp ASC
+		LIMIT $3;
+	`
+
+	query = fmt.Sprintf(query, daysPastFirstEmail)
+	rows, err := db.GetDB().QueryContext(ctx, query, status, "SENT", limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var candidates []FollowUpCandidate
+	for rows.Next() {
+		var c FollowUpCandidate
+		err := rows.Scan(
+			&c.ContactID,
+			&c.CompanyID,
+			&c.ContactName,
+			&c.ContactEmail,
+			&c.ContactRole,
+			&c.ContactLinkedIn,
+			&c.ContactPhone,
+			&c.ContactStatus,
+			&c.CompanyName,
+			&c.CompanyWebsite,
+			&c.CompanyIndustry,
+			&c.CompanyTech,
+			&c.CompanyDetails,
+			&c.EmailSubject,
+			&c.EmailBody,
+			&c.Metadata,
+		)
+		if err != nil {
+			log.Println("err:", err)
+			return nil, err
+		}
+		candidates = append(candidates, c)
+	}
+	return candidates, nil
 }

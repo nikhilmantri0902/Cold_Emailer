@@ -206,7 +206,7 @@ func EnrichContactsForOrganizationID(ctx context.Context, apolloOrganizationID, 
 	return nil
 }
 
-func GenerateAndSendEmails(ctx context.Context, count int, status string) (err error) {
+func GenerateAndSendEmails(ctx context.Context, limit int, status string) (err error) {
 	// Get Gmail token
 	token, err := gmailtokens.GetLatestToken(ctx)
 	if err != nil {
@@ -215,7 +215,7 @@ func GenerateAndSendEmails(ctx context.Context, count int, status string) (err e
 	}
 
 	// Step 2 - Fetch contacts with company info
-	contactsList, err := contacts.GetContactsWithCompanyInfo(ctx, count, status, "")
+	contactsList, err := contacts.GetContactsWithCompanyInfo(ctx, limit, status, "")
 	if err != nil {
 		log.Printf("ERROR: Failed to fetch contacts: %v", err)
 		return err
@@ -333,6 +333,138 @@ func GenerateAndSendEmails(ctx context.Context, count int, status string) (err e
 	}
 
 	log.Printf("Email sending completed: %d generated, %d sent, %d failed", emailsGenerated, emailsSent, emailsFailed)
+
+	return nil
+}
+
+func GenerateAndSendFollowUpEmails(ctx context.Context, daysPastFirstEmail int, limit int, status string) (err error) {
+	// Get Gmail token
+	token, err := gmailtokens.GetLatestToken(ctx)
+	if err != nil {
+		log.Println("error:", err)
+		return err
+	}
+
+	// Step 2 - Fetch follow-up candidates
+	candidates, err := contacts.GetFollowUpCandidates(ctx, daysPastFirstEmail, limit, status)
+	if err != nil {
+		log.Printf("ERROR: Failed to fetch follow-up candidates: %v", err)
+		return err
+	}
+
+	log.Printf("Found %d contacts to send follow-up emails to", len(candidates))
+
+	// Get profile info for email generation
+	profile, err := profileinfo.GetLatestActive(ctx)
+	if err != nil {
+		log.Printf("ERROR: Failed to get profile info: %v", err)
+		return err
+	}
+
+	from := token.EmailID
+	if from == "me" {
+		from = profile.Email // Use profile email as fallback
+	}
+
+	// Initialize OpenAI client
+	openaiClient := openai.NewOpenAIClient()
+
+	emailsGenerated := 0
+	emailsSent := 0
+	emailsFailed := 0
+
+	for _, candidate := range candidates {
+		log.Printf("Processing follow-up for contact: %s (%s) at %s", candidate.ContactName, candidate.ContactEmail, candidate.CompanyName)
+
+		// Step 3: Generate personalized follow-up email
+		emailData := openai.EmailGenerationData{
+			ContactName:       candidate.ContactName,
+			ContactRole:       candidate.ContactRole,
+			ContactLinkedIn:   candidate.ContactLinkedIn,
+			CompanyName:       candidate.CompanyName,
+			CompanyWebsite:    candidate.CompanyWebsite,
+			CompanyIndustry:   candidate.CompanyIndustry,
+			CompanyDetails:    candidate.CompanyDetails,
+			CompanyTechStack:  candidate.CompanyTech,
+			ProfileName:       profile.Name,
+			ProfileExperience: profile.Experience,
+			ProfileSkills:     profile.Skills,
+			ProfileSummary:    profile.Summary,
+		}
+
+		// Add previous email context to the prompt
+		followUpPrompt := "This is a follow-up to a previous email. Previous subject: '" + candidate.EmailSubject + "'. Previous body: '" + candidate.EmailBody + "'. Please reference the previous outreach and write a polite, concise follow-up."
+
+		subject, body, err := openaiClient.GeneratePersonalizedEmailWithExtraPrompt(emailData, followUpPrompt)
+		if err != nil {
+			log.Printf("ERROR: Failed to generate follow-up email for %s: %v", candidate.ContactEmail, err)
+			emailsFailed++
+			continue
+		}
+
+		emailsGenerated++
+		log.Printf("Generated follow-up email for %s: %s", candidate.ContactEmail, subject)
+
+		// Log GENERATED_FOLLOW_UP stage
+		metadata := map[string]interface{}{
+			"contact_name": candidate.ContactName,
+			"contact_role": candidate.ContactRole,
+			"company_name": candidate.CompanyName,
+			"generated_at": time.Now().Format(time.RFC3339),
+		}
+
+		if err := email_logs.LogGeneratedFollowUp(ctx, candidate.ContactID, candidate.CompanyID, subject, body, metadata); err != nil {
+			log.Printf("ERROR: Failed to log GENERATED_FOLLOW_UP stage for %s: %v", candidate.ContactEmail, err)
+		}
+
+		// Step 4: Send follow-up email with resume
+		if profile.ResumePath == "" {
+			log.Printf("WARNING: No resume path found for profile, sending without attachment")
+			err = gmail.SendSingleEmail(ctx, token.AccessToken, from, candidate.ContactEmail, subject, body)
+		} else {
+			err = gmail.SendEmailWithAttachment(ctx, token.AccessToken, from, candidate.ContactEmail, subject, body, profile.ResumePath)
+		}
+
+		if err != nil {
+			log.Printf("ERROR: Failed to send follow-up email to %s: %v", candidate.ContactEmail, err)
+			emailsFailed++
+
+			// Log ERROR stage
+			errorMetadata := map[string]interface{}{
+				"contact_name": candidate.ContactName,
+				"contact_role": candidate.ContactRole,
+				"company_name": candidate.CompanyName,
+				"error_at":     time.Now().Format(time.RFC3339),
+				"error_type":   "send_failed_follow_up",
+			}
+
+			if logErr := email_logs.LogError(ctx, candidate.ContactID, candidate.CompanyID, subject, body, err.Error(), errorMetadata); logErr != nil {
+				log.Printf("ERROR: Failed to log ERROR stage for %s: %v", candidate.ContactEmail, logErr)
+			}
+			continue
+		}
+
+		emailsSent++
+		log.Printf("SUCCESS: Sent follow-up email to %s (%s)", candidate.ContactEmail, subject)
+
+		// Log SENT_FOLLOW_UP stage
+		sentMetadata := map[string]interface{}{
+			"contact_name":    candidate.ContactName,
+			"contact_role":    candidate.ContactRole,
+			"company_name":    candidate.CompanyName,
+			"sent_at":         time.Now().Format(time.RFC3339),
+			"resume_attached": profile.ResumePath != "",
+		}
+
+		if err := email_logs.LogSentFollowUp(ctx, candidate.ContactID, candidate.CompanyID, subject, body, sentMetadata); err != nil {
+			log.Printf("ERROR: Failed to log SENT_FOLLOW_UP stage for %s: %v", candidate.ContactEmail, err)
+		}
+
+		// Small delay to avoid rate limiting
+		time.Sleep(2 * time.Second)
+	}
+
+	log.Printf("Follow-up email sending completed: %d generated, %d sent, %d failed", emailsGenerated, emailsSent, emailsFailed)
 
 	return nil
 }

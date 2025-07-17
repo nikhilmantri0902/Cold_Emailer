@@ -460,3 +460,70 @@ func SendFewInitialEmailsHandler(c *gin.Context) {
 		Count:   req.Count,
 	})
 }
+
+// SendFewFollowUpmailsRequest is the request body for sending follow up emails
+type SendFewFollowUpmailsRequest struct {
+	Count              int    `json:"count" binding:"min=1,max=50"`
+	Status             string `json:"status,omitempty"` // Optional status filter for contacts
+	DaysPastFirstEmail int    `json:"days_past_first_email,omitempty"`
+}
+
+// SendFewFollowUpEmailsResponse is the response for the follow up emails endpoint
+type SendFewFollowUpEmailsResponse struct {
+	Message string `json:"message"`
+	Count   int    `json:"count"`
+}
+
+// SendFewFollowUpEmailsHandler sends follow_up emails to contacts
+func SendFewFollowUpEmailsHandler(c *gin.Context) {
+	var req SendFewFollowUpmailsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Set default count if not provided
+	if req.Count == 0 {
+		req.Count = 10
+	}
+
+	// Set default status if not provided
+	if req.Status == "" {
+		req.Status = contacts.StatusActive
+	}
+
+	if req.DaysPastFirstEmail == 0 {
+		req.DaysPastFirstEmail = 3
+	}
+
+	// Get Gmail token
+	token, err := gmailtokens.GetLatestToken(c.Request.Context())
+	if err != nil {
+		log.Println("error:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No Gmail token found. Please authenticate first."})
+		return
+	}
+
+	// check if token has expired, return reauthenticate error
+	if token.CheckExpiry() {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "gmail oauth credentials have expired. Please reauthenticate"})
+		return
+	}
+
+	// Start email sending in goroutine
+	go func() {
+		ctx := context.Background()
+		log.Printf("Starting to send %d follow up emails to contacts with status: %s", req.Count, req.Status)
+
+		err = GenerateAndSendFollowUpEmails(ctx, req.DaysPastFirstEmail, req.Count, req.Status)
+		if err != nil {
+			log.Println("err:", err)
+			return
+		}
+	}()
+
+	c.JSON(http.StatusAccepted, SendFewFollowUpEmailsResponse{
+		Message: "Follow up email sending started. Check logs for progress.",
+		Count:   req.Count,
+	})
+}
