@@ -4,13 +4,16 @@ services:
   cold-emailer:
     build: .
     ports:
-      - "8080:8080"
+      - "8000:8000"
     environment:
-      - PORT=8080
+      - PORT=${PORT}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GMAIL_CLIENT_ID=${GMAIL_CLIENT_ID}
       - GMAIL_CLIENT_SECRET=${GMAIL_CLIENT_SECRET}
       - GMAIL_REDIRECT_URI=${GMAIL_REDIRECT_URI}
+      - SERVICE_NAME=${SERVICE_NAME}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - INSECURE_MODE=${INSECURE_MODE}
     volumes:
       - .:/app
       - ./storage:/app/storage
