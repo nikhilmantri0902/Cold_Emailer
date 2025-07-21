@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
+
+	"cold_emailer/utils"
 )
 
 // OpenAIClient handles requests to the OpenAI API
@@ -87,13 +88,13 @@ func (c *OpenAIClient) GenerateEmail(prompt string) (string, error) {
 
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("failed to marshal request")
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("failed to create request")
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
@@ -102,35 +103,35 @@ func (c *OpenAIClient) GenerateEmail(prompt string) (string, error) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("failed to call OpenAI API")
 		return "", fmt.Errorf("failed to call OpenAI API: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("failed to read response")
 		return "", fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode != 200 {
-		log.Println("error: OpenAI API error", string(respBody))
+		utils.Logger.Error().Msgf("OpenAI API error: %s", string(respBody))
 		return "", fmt.Errorf("OpenAI API error: %s", string(respBody))
 	}
 
 	var completionResp ChatCompletionResponse
 	if err := json.Unmarshal(respBody, &completionResp); err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("failed to unmarshal response")
 		return "", fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	if completionResp.Error != nil {
-		log.Println("error: OpenAI error", completionResp.Error.Message)
+		utils.Logger.Error().Msgf("OpenAI error: %s", completionResp.Error.Message)
 		return "", fmt.Errorf("OpenAI error: %s", completionResp.Error.Message)
 	}
 
 	if len(completionResp.Choices) == 0 {
-		log.Println("error: no choices returned from OpenAI")
+		utils.Logger.Error().Msg("no choices returned from OpenAI")
 		return "", fmt.Errorf("no choices returned from OpenAIII")
 	}
 

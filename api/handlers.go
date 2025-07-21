@@ -8,13 +8,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"cold_emailer/dbmodels/contacts"
 	"cold_emailer/gmail"
 	"cold_emailer/openai"
+
+	"cold_emailer/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -31,7 +32,7 @@ func InitStorage() {
 // Upload user profile and resume
 func UploadProfileHandler(c *gin.Context) {
 	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "INVALID_FORM",
 			Message: "Failed to parse form data",
@@ -42,7 +43,7 @@ func UploadProfileHandler(c *gin.Context) {
 
 	var profileReq ProfileUploadRequest
 	if err := c.ShouldBind(&profileReq); err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "INVALID_PROFILE_DATA",
 			Message: fmt.Sprintf("Invalid profile data: %v", err),
@@ -58,7 +59,7 @@ func UploadProfileHandler(c *gin.Context) {
 	if file, err := c.FormFile("resume"); err == nil && file != nil {
 		uploadedFile, err := storageService.UploadFile(file, constants.RESUME_CATEGORY)
 		if err != nil {
-			log.Println("error:", err)
+			utils.Logger.Error().Err(err).Msg("error:")
 			c.JSON(http.StatusBadRequest, ErrorResponse{
 				Error:   "RESUME_UPLOAD_FAILED",
 				Message: fmt.Sprintf("Failed to upload resume: %v", err),
@@ -82,7 +83,7 @@ func UploadProfileHandler(c *gin.Context) {
 		if err == nil {
 			resumeMetadata = string(b)
 		} else {
-			log.Println("error:", err)
+			utils.Logger.Error().Err(err).Msg("error:")
 			resumeMetadata = "{}"
 		}
 	}
@@ -104,7 +105,7 @@ func UploadProfileHandler(c *gin.Context) {
 		Metadata:    resumeMetadata,
 	}
 	if err := profileinfo.Create(context.Background(), info); err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "DB_ERROR",
 			Message: fmt.Sprintf("Failed to save profile: %v", err),
@@ -136,7 +137,7 @@ func UploadProfileHandler(c *gin.Context) {
 func UploadTargetsHandler(c *gin.Context) {
 	var req TargetsUploadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "INVALID_TARGETS_DATA",
 			Message: fmt.Sprintf("Invalid targets data: %v", err),
@@ -163,7 +164,7 @@ func UploadTargetsHandler(c *gin.Context) {
 func GenerateEmailHandler(c *gin.Context) {
 	var req GenerateEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "INVALID_REQUEST",
 			Message: fmt.Sprintf("Invalid request data: %v", err),
@@ -175,7 +176,7 @@ func GenerateEmailHandler(c *gin.Context) {
 	// Fetch latest active profile from DB
 	profile, err := profileinfo.GetLatestActive(context.Background())
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "NO_PROFILE",
 			Message: "No active profile found. Please upload your profile first.",
@@ -206,7 +207,7 @@ func GenerateEmailHandler(c *gin.Context) {
 	openaiClient := openai.NewOpenAIClient()
 	emailText, err := openaiClient.GenerateEmail(prompt)
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "OPENAI_ERROR",
 			Message: fmt.Sprintf("Failed to generate email: %v", err),
@@ -279,14 +280,14 @@ func GmailAuthInitiateHandler(c *gin.Context) {
 func GmailOAuth2CallbackHandler(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
-		log.Println("error: missing code in callback")
+		utils.Logger.Error().Msg("error: missing code in callback")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing code in callback"})
 		return
 	}
 	ctx := context.Background()
 	tok, err := gmail.ExchangeCode(ctx, code)
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -331,7 +332,7 @@ func SendSingleEmailHandler(c *gin.Context) {
 
 	token, err := gmailtokens.GetLatestToken(ctx)
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No Gmail token found. Please authenticate first."})
 		return
 	}
@@ -348,7 +349,7 @@ func SendSingleEmailHandler(c *gin.Context) {
 	}
 	err = gmail.SendSingleEmail(ctx, token.AccessToken, from, req.To, req.Subject, req.Body)
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -374,14 +375,14 @@ func EnrichDatabaseHandler(c *gin.Context) {
 		maxContactsPerCompany = 100
 	}
 
-	log.Println("company_count:", companyCount, "max_contacts_per_company", maxContactsPerCompany)
+	utils.Logger.Info().Int("company_count", companyCount).Int("max_contacts_per_company", maxContactsPerCompany).Msg("company_count:")
 	go func() {
 		err := EnrichDBWithCompaniesAndContacts(context.Background(), companyCount, maxContactsPerCompany)
 		if err != nil {
-			log.Println("err:", err)
+			utils.Logger.Error().Err(err).Msg("err:")
 			return
 		}
-		log.Println("Enrichment complete")
+		utils.Logger.Info().Msg("Enrichment complete")
 	}()
 
 	c.JSON(http.StatusAccepted, gin.H{"message": "Enrichment started. Check logs for progress."})
@@ -392,7 +393,7 @@ func BackfillCompanyDetails(c *gin.Context) {
 	go func() {
 		err := BackFillCompanyDetailsFunc(context.Background())
 		if err != nil {
-			log.Println("err:", err)
+			utils.Logger.Error().Err(err).Msg("err:")
 			return
 		}
 	}()
@@ -432,7 +433,7 @@ func SendFewInitialEmailsHandler(c *gin.Context) {
 	// Get Gmail token
 	token, err := gmailtokens.GetLatestToken(c.Request.Context())
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No Gmail token found. Please authenticate first."})
 		return
 	}
@@ -446,11 +447,11 @@ func SendFewInitialEmailsHandler(c *gin.Context) {
 	// Start email sending in goroutine
 	go func() {
 		ctx := context.Background()
-		log.Printf("Starting to send %d initial emails to contacts with status: %s", req.Count, req.Status)
+		utils.Logger.Info().Int("count", req.Count).Str("status", req.Status).Msg("Starting to send initial emails to contacts with status:")
 
 		err = GenerateAndSendEmails(ctx, req.Count, req.Status)
 		if err != nil {
-			log.Println("err:", err)
+			utils.Logger.Error().Err(err).Msg("err:")
 			return
 		}
 	}()
@@ -499,7 +500,7 @@ func SendFewFollowUpEmailsHandler(c *gin.Context) {
 	// Get Gmail token
 	token, err := gmailtokens.GetLatestToken(c.Request.Context())
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("error:")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No Gmail token found. Please authenticate first."})
 		return
 	}
@@ -513,11 +514,11 @@ func SendFewFollowUpEmailsHandler(c *gin.Context) {
 	// Start email sending in goroutine
 	go func() {
 		ctx := context.Background()
-		log.Printf("Starting to send %d follow up emails to contacts with status: %s", req.Count, req.Status)
+		utils.Logger.Info().Int("count", req.Count).Str("status", req.Status).Msg("Starting to send follow up emails to contacts with status:")
 
 		err = GenerateAndSendFollowUpEmails(ctx, req.DaysPastFirstEmail, req.Count, req.Status)
 		if err != nil {
-			log.Println("err:", err)
+			utils.Logger.Error().Err(err).Msg("err:")
 			return
 		}
 	}()

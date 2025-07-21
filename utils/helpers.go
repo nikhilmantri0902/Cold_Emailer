@@ -2,9 +2,22 @@ package utils
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 )
+
+var Logger zerolog.Logger
+
+func init() {
+	Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+}
+
+// GetLogger returns the global zerolog logger
+func GetLogger() zerolog.Logger {
+	return Logger
+}
 
 // joinClauses joins a slice of strings with the given separator.
 func JoinClauses(clauses []string, sep string) string {

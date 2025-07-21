@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"net/mail"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"cold_emailer/utils"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -45,7 +46,7 @@ func ExchangeCode(ctx context.Context, code string) (*oauth2.Token, error) {
 	config := GetOAuth2Config()
 	tok, err := config.Exchange(ctx, code)
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("failed to exchange code:")
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
 	return tok, nil
@@ -78,14 +79,14 @@ func SendSingleEmail(ctx context.Context, accessToken, from, to, subject, body s
 		Expiry:      time.Now().Add(time.Hour), // not used for static token
 	})))
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("failed to create Gmail service:")
 		return fmt.Errorf("failed to create Gmail service: %w", err)
 	}
 
 	// Send the message
 	_, err = svc.Users.Messages.Send("me", &gmail.Message{Raw: raw}).Do()
 	if err != nil {
-		log.Println("error:", err)
+		utils.Logger.Error().Err(err).Msg("failed to send email:")
 		return fmt.Errorf("failed to send email: %w", err)
 	}
 	return nil
