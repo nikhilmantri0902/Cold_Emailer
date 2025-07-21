@@ -90,6 +90,10 @@ func main() {
 		os.Exit(0)
 	}
 
+	log.Println("serviceName:", serviceName)
+	log.Println("collectorURL:", collectorURL)
+	log.Println("insecure:", insecure)
+
 	constants.PrintENV()
 
 	// Initialize DB (singleton)
