@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  cold-emailer:
+  backend:
     build: .
     ports:
       - "8000:8000"
@@ -15,7 +15,17 @@ services:
       - .:/app
       - ./storage:/app/storage
     restart: unless-stopped
-    command: go run cmd/server/main.go 
+    command: go run cmd/server/main.go
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    depends_on:
+      - backend
 
   db:
     image: postgres:15

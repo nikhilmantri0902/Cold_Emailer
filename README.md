@@ -1,6 +1,6 @@
 # Cold Emailer - AI-Powered Job Application Outreach System
 
-A comprehensive Golang-based cold email outreach system that automates personalized job application emails to recruiters and CTOs. The system integrates Apollo API for company and contact discovery, OpenAI for intelligent email generation, and Gmail API for sending emails with resume attachments.
+A comprehensive Golang-based cold email outreach system that automates personalized job application emails to recruiters and CTOs. The system integrates Apollo API for company and contact discovery, OpenAI for intelligent email generation, and Gmail API for sending emails with resume attachments. Includes a web-based dashboard for monitoring and management.
 
 ## 🚀 Features
 
@@ -14,6 +14,15 @@ A comprehensive Golang-based cold email outreach system that automates personali
 - **Rate Limiting**: Built-in rate limiting for all external API calls
 - **Database Management**: PostgreSQL with proper schema, migrations, and indexing
 
+### 🖥 Frontend Dashboard
+- **Web-Based Interface**: Clean, responsive dashboard for monitoring and management
+- **Email Logs Viewer**: Paginated display of all email activities with filtering options
+- **Company Browser**: Interactive company directory with search and filtering
+- **Contact Management**: View detailed contact information organized by company
+- **System Configuration**: Display of current targeting parameters and filters
+- **Real-time Data**: Live updates from the backend API
+- **Tab-Based Navigation**: Organized interface with separate sections for different functionalities
+
 ### 🔄 Complete Pipeline Flow
 1. **Profile Setup**: Upload your profile information and resume
 2. **Gmail Authentication**: Complete OAuth flow for email sending
@@ -26,6 +35,7 @@ A comprehensive Golang-based cold email outreach system that automates personali
 ## 🛠 Technology Stack
 
 - **Backend**: Go 1.23 with Gin web framework
+- **Frontend**: Static HTML/CSS/JavaScript with Nginx
 - **Database**: PostgreSQL 15 with migrations
 - **External APIs**: 
   - Apollo API for company/contact discovery
@@ -33,6 +43,7 @@ A comprehensive Golang-based cold email outreach system that automates personali
   - Gmail API for email sending
 - **File Storage**: Local file system with organized storage structure
 - **Authentication**: Gmail OAuth 2.0
+- **Web Server**: Nginx (reverse proxy + static file serving)
 - **Deployment**: Docker & Docker Compose
 - **Logging**: Structured logging with zerolog
 
@@ -88,11 +99,16 @@ DB_NAME=coldemailer
 ### 3. Using Docker Compose (Recommended)
 
 ```bash
-# Start all services
+# Start all services (backend, frontend, database)
 docker-compose up --build
 
 # Run in background
 docker-compose up -d --build
+
+# Services started:
+# - Backend API: http://localhost:8000
+# - Frontend Dashboard: http://localhost:3000  
+# - PostgreSQL Database: localhost:5432
 ```
 
 ### 4. Manual Setup (Alternative)
@@ -111,9 +127,28 @@ go run cmd/server/main.go
 ### 5. Verify Installation
 
 ```bash
+# Check backend API
 curl http://localhost:8000/health
 # Response: {"status":"ok"}
+
+# Access frontend dashboard
+open http://localhost:3000
 ```
+
+## 🌐 Access Points
+
+### Frontend Dashboard
+- **URL**: http://localhost:3000
+- **Features**: 
+  - Email Logs tab with pagination and filtering
+  - Companies & Contacts tab with search functionality
+  - System configuration display
+  - Real-time data from backend API
+
+### Backend API
+- **URL**: http://localhost:8000
+- **Health Check**: http://localhost:8000/health
+- **API Documentation**: See API Endpoints section below
 
 ## 📡 API Endpoints
 
@@ -213,6 +248,36 @@ GET /gmail-oauth2callback?code=...&state=...
 ```
 - Handles OAuth callback and stores tokens
 
+### Frontend API Endpoints
+
+#### Get Email Logs (with Pagination)
+```http
+GET /api/email-logs?page=1&limit=10&stage=INITIAL
+```
+- Returns paginated email logs with company and contact details
+- **Query Parameters**:
+  - `page`: Page number (default: 1)
+  - `limit`: Records per page (default: 10, max: 100)
+  - `stage`: Filter by email stage (INITIAL, FOLLOWUP) - optional
+
+#### Get All Companies
+```http
+GET /api/companies
+```
+- Returns all companies in the database with full details
+
+#### Get Company Contacts
+```http
+GET /api/companies/{company_id}/contacts
+```
+- Returns all contacts for a specific company
+
+#### Get System Configuration
+```http
+GET /api/config
+```
+- Returns current targeting configuration (countries, roles, company sizes, industries)
+
 ### Monitoring & Status
 
 #### Health Check
@@ -226,7 +291,7 @@ GET /api/status
 ```
 - Returns database connection status and system health
 
-#### Email Logs
+#### Email Logs (Legacy)
 ```http
 GET /api/logs
 ```
@@ -355,6 +420,13 @@ cold_emailer/
 │   ├── email_logs/       # Email log model operations
 │   ├── gmailtokens/      # Gmail token model operations
 │   └── profileinfo/      # Profile model operations
+├── frontend/              # Web dashboard
+│   ├── public/           # Static HTML files
+│   │   └── index.html    # Main dashboard page
+│   ├── src/              # JavaScript and CSS
+│   │   └── app.js        # Frontend application logic
+│   ├── Dockerfile        # Frontend container configuration
+│   └── nginx.conf        # Nginx configuration
 ├── gmail/                 # Gmail API integration
 │   └── client.go         # Gmail OAuth and sending logic
 ├── migrations/            # Database migration files
@@ -371,7 +443,7 @@ cold_emailer/
 ├── utils/                 # Utility functions
 │   └── helpers.go        # Common helper functions
 ├── docker-compose.yml     # Docker services configuration
-├── Dockerfile            # Application container
+├── Dockerfile            # Backend application container
 ├── go.mod               # Go module dependencies
 └── README.md            # This file
 ```
@@ -409,7 +481,16 @@ cold_emailer/
    open http://localhost:8000/gmail-auth-initiate
    ```
 
-4. **Database Enrichment**
+4. **Access Dashboard**
+   ```bash
+   # Open the web dashboard
+   open http://localhost:3000
+   ```
+   The dashboard provides:
+   - **Email Logs Tab**: View all sent emails with pagination and filtering
+   - **Companies & Contacts Tab**: Browse companies and their associated contacts
+   - **System Config Display**: Current targeting parameters
+5. **Database Enrichment**
    ```bash
    # Enrich with companies and contacts
    curl -X POST http://localhost:8000/api/enrich-database \
@@ -420,16 +501,17 @@ cold_emailer/
    curl -X POST http://localhost:8000/api/backfill-company-details
    ```
 
-5. **Start Email Campaign**
+6. **Start Email Campaign**
    ```bash
    # Send initial outreach emails
    curl -X POST http://localhost:8000/api/send-few-initial-emails
    
-   # Check logs
+   # Check logs via API or dashboard
    curl http://localhost:8000/api/logs
+   # OR visit http://localhost:3000 and check Email Logs tab
    ```
 
-6. **Follow-up Campaign**
+7. **Follow-up Campaign**
    ```bash
    # Send follow-up emails (after some time)
    curl -X POST http://localhost:8000/api/send-few-follow-up-emails
@@ -441,12 +523,154 @@ cold_emailer/
 # Check system status
 curl http://localhost:8000/api/status
 
-# View email logs
-curl http://localhost:8000/api/logs
+# View email logs via API
+curl http://localhost:8000/api/email-logs?page=1&limit=20
+
+# View companies via API
+curl http://localhost:8000/api/companies
 
 # Check database (direct SQL)
 docker exec -it cold_emailer_db_1 psql -U coldemailer -d coldemailer
 ```
+
+**Or use the web dashboard at http://localhost:3000 for a visual interface to:**
+- Browse email logs with pagination and filtering
+- Search and filter companies by name, industry, or website
+- View detailed contact information organized by company
+- Monitor system configuration and targeting parameters
+
+## 🔒 Security & Best Practices
+
+### API Key Management
+- Store all API keys in `.env` file (never commit to git)
+- Use environment variables in production
+- Rotate keys regularly
+
+### Database Security
+- Use strong passwords for database
+- Implement proper connection pooling
+- Regular backups recommended
+
+### OAuth Security
+- Secure redirect URI configuration
+- Token refresh handling
+- Proper scope management for Gmail API
+
+## 🚨 Rate Limiting & Quotas
+
+### Apollo API
+- Respects Apollo's rate limits
+- Implements exponential backoff
+- Batches requests efficiently
+
+### OpenAI API
+- Configurable temperature and max tokens
+- Error handling for quota limits
+- Retry logic for transient failures
+
+### Gmail API
+- OAuth token refresh handling
+- Respects Gmail sending limits
+- Proper attachment handling
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### Database Connection Issues
+```bash
+# Check database status
+docker-compose ps
+
+# View database logs
+docker-compose logs db
+
+# Connect to database manually
+docker exec -it cold_emailer_db_1 psql -U coldemailer -d coldemailer
+```
+
+#### Frontend Issues
+```bash
+# Check frontend container logs
+docker-compose logs frontend
+
+# Verify frontend is accessible
+curl http://localhost:3000
+
+# Check if API proxy is working
+curl http://localhost:3000/api/companies
+```
+
+#### Gmail Authentication Issues
+- Verify redirect URI matches exactly in Google Cloud Console
+- Check OAuth scopes are properly configured
+- Ensure Gmail API is enabled in Google Cloud Console
+
+#### API Key Issues
+- Verify all API keys are correctly set in `.env`
+- Check API key permissions and quotas
+- Test API keys independently
+
+#### Migration Issues
+```bash
+# Generate new migration
+go run cmd/server/main.go --generate-migration your_migration_name
+
+# Check migration status in database
+SELECT * FROM schema_migrations;
+```
+
+## 📊 Monitoring & Logging
+
+### Log Levels
+- **Error**: API failures, database errors
+- **Info**: Successful operations, status updates
+- **Debug**: Detailed operation flow
+
+### Key Metrics to Monitor
+- Email generation success rate
+- Email sending success rate
+- API response times
+- Database connection health
+- File storage usage
+- Frontend dashboard usage
+
+## 🔮 Future Enhancements
+
+- [x] Web UI for campaign management
+- [ ] Advanced email templates
+- [ ] A/B testing for email content
+- [ ] Analytics dashboard with charts
+- [ ] Webhook support for status updates
+- [ ] Multi-user support
+- [ ] Email scheduling
+- [ ] CRM integrations
+- [ ] Real-time notifications
+- [ ] Advanced filtering and search
+- [ ] Export functionality
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📞 Support
+
+For issues and questions:
+- Create an issue in the GitHub repository
+- Check the troubleshooting section above
+- Review logs for detailed error information
+
+---
+
+**Note**: This system is designed for legitimate job application outreach. Please ensure compliance with applicable laws and email service provider terms of service when using this tool.
 
 ## 🔒 Security & Best Practices
 
@@ -531,17 +755,6 @@ SELECT * FROM schema_migrations;
 - Database connection health
 - File storage usage
 
-## 🔮 Future Enhancements
-
-- [ ] Web UI for campaign management
-- [ ] Advanced email templates
-- [ ] A/B testing for email content
-- [ ] Analytics dashboard
-- [ ] Webhook support for status updates
-- [ ] Multi-user support
-- [ ] Email scheduling
-- [ ] CRM integrations
-
 ## 📄 License
 
 MIT License - see LICENSE file for details
@@ -564,3 +777,4 @@ For issues and questions:
 ---
 
 **Note**: This system is designed for legitimate job application outreach. Please ensure compliance with applicable laws and email service provider terms of service when using this tool.
+

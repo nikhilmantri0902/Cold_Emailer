@@ -28,6 +28,12 @@ var (
 		"Germany", "Netherlands", "Canada", "Sweden", "Finland", "Norway", "Ireland", "United Kingdom", "Luxembourg", "United Arab Emirates", "Singapore", "Australia"}
 	// SuitableRoles is a helper for filtering contacts
 	SuitableRoles = []string{"CTO", "Talent Acquisition", "Technical Recruiter", "Product Manager"}
+
+	// Apollo API search ranges (format for Apollo API)
+	OrganizationEmployeeRanges = []string{"1,10", "11,50", "51,200", "201,500"}
+
+	// Keyword tags for Apollo company search
+	OrganizationKeywordTags = []string{"technology", "software", "IT", "artificial intelligence"}
 )
 
 var ()

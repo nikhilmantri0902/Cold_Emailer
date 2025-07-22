@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cold Email Outreach Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            background: #e9ecef;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+            border-radius: 8px 8px 0 0;
+            transition: background-color 0.3s;
+        }
+
+        .tab.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .tab-content {
+            background: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-height: 600px;
+        }
+
+        .tab-panel {
+            display: none;
+            padding: 20px;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .filters {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-weight: 500;
+            font-size: 14px;
+            color: #495057;
+        }
+
+        select, input {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background: #0056b3;
+        }
+
+        .logs-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+        .log-item {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+            background: white;
+            transition: background-color 0.2s;
+        }
+
+        .log-item:hover {
+            background: #f8f9fa;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .log-subject {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .log-stage {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .log-stage.SENT {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .log-stage.GENERATED {
+            background: #cce7ff;
+            color: #004085;
+        }
+
+        .log-stage.ERROR {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .log-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .log-detail {
+            font-size: 14px;
+        }
+
+        .log-detail strong {
+            color: #495057;
+        }
+
+        .log-body {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 14px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .company-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .company-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .company-card:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .company-card.selected {
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+
+        .company-name {
+            font-weight: 600;
+            font-size: 18px;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .company-info {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .contacts-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .contact-item {
+            padding: 12px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .contact-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .contact-details {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .page-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Cold Email Outreach Dashboard</h1>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('email-logs')">📧 Email Logs</button>
+            <button class="tab" onclick="switchTab('companies')">🏢 Companies & Contacts</button>
+        </div>
+
+        <div class="tab-content">
+            <!-- Email Logs Tab -->
+            <div id="email-logs" class="tab-panel active">
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Filter by Stage:</label>
+                        <select id="stageFilter">
+                            <option value="">All Stages</option>
+                            <option value="GENERATED">Generated</option>
+                            <option value="SENT">Sent</option>
+                            <option value="ERROR">Error</option>
+                            <option value="GENERATED_FOLLOW_UP">Generated Follow-up</option>
+                            <option value="SENT_FOLLOW_UP">Sent Follow-up</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Page Size:</label>
+                        <select id="pageSizeSelect">
+                            <option value="25">25</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="loadEmailLogs()">🔍 Refresh</button>
+                </div>
+
+                <div id="systemConfig" class="filters">
+                    <!-- System config will be loaded here -->
+                </div>
+
+                <div id="emailLogsContainer">
+                    <div class="loading">Loading email logs...</div>
+                </div>
+
+                <div id="pagination" class="pagination" style="display: none;">
+                    <!-- Pagination will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Companies Tab -->
+            <div id="companies" class="tab-panel">
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Search Company:</label>
+                        <input type="text" id="companySearch" placeholder="Search by name or industry...">
+                    </div>
+                    <button class="btn" onclick="filterCompanies()">🔍 Search</button>
+                    <button class="btn" onclick="loadCompanies()">🔄 Refresh</button>
+                </div>
+
+                <div id="companiesContainer">
+                    <div class="loading">Loading companies...</div>
+                </div>
+
+                <div id="contactsSection" class="contacts-section" style="display: none;">
+                    <h3>📋 Contacts for <span id="selectedCompanyName"></span></h3>
+                    <div id="contactsContainer">
+                        <!-- Contacts will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../src/app.js"></script>
+</body>
+</html> 

@@ -27,9 +27,9 @@ func EnrichDBWithCompaniesAndContacts(ctx context.Context, countNewCompanies, ma
 
 	for countNewCompanies > 0 && pageNum <= maxPages {
 		resp, err := client.SearchCompaniesMixed(apollo.MixedCompanySearchRequest{
-			OrganizationNumEmployeesRanges: []string{"1,10", "11,50", "51,200", "201,500"},
+			OrganizationNumEmployeesRanges: constants.OrganizationEmployeeRanges,
 			OrganizationLocations:          constants.TargetCountries,
-			QOrganizationKeywordTags:       []string{"technology", "software", "IT", "artificial intelligence"},
+			QOrganizationKeywordTags:       constants.OrganizationKeywordTags,
 			Page:                           pageNum,
 			PerPage:                        10,
 		})

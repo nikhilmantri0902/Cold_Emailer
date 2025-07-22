@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -47,6 +48,15 @@ func main() {
 	// Initialize Gin
 	r := gin.Default()
 
+	// Add CORS middleware
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"*"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
+
 	// Example health route
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -62,6 +72,11 @@ func main() {
 	apiRoutes.POST("/send-few-follow-up-emails", api.SendFewFollowUpEmailsHandler)
 	apiRoutes.GET("/status", api.StatusHandler)
 	apiRoutes.GET("/logs", api.LogsHandler)
+	// New endpoints for frontend
+	apiRoutes.GET("/email-logs", api.GetEmailLogsHandler)
+	apiRoutes.GET("/companies", api.GetCompaniesHandler)
+	apiRoutes.GET("/companies/:company_id/contacts", api.GetCompanyContactsHandler)
+	apiRoutes.GET("/config", api.GetSystemConfigHandler)
 
 	// Gmail OAuth2 endpoints
 	r.GET("/gmail-auth-initiate", api.GmailAuthInitiateHandler)

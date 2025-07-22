@@ -189,3 +189,37 @@ func GetFollowUpCandidates(ctx context.Context, daysPastFirstEmail int, limit in
 	}
 	return candidates, nil
 }
+
+// GetContactsByCompanyID fetches all contacts for a specific company
+func GetContactsByCompanyID(ctx context.Context, companyID string) ([]Contact, error) {
+	query := `
+		SELECT id, apollo_id, created_at, company_id, status, name, email_id, phone_number, linkedin_url, role, metadata
+		FROM contacts 
+		WHERE company_id = $1 
+		ORDER BY created_at DESC
+	`
+
+	rows, err := db.GetDB().QueryContext(ctx, query, companyID)
+	if err != nil {
+		log.Println("err:", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var contactsList []Contact
+	for rows.Next() {
+		var contact Contact
+		err := rows.Scan(
+			&contact.ID, &contact.ApolloID, &contact.CreatedAt, &contact.CompanyID,
+			&contact.Status, &contact.Name, &contact.EmailID, &contact.PhoneNumber,
+			&contact.LinkedInURL, &contact.Role, &contact.Metadata,
+		)
+		if err != nil {
+			log.Println("err:", err)
+			return nil, err
+		}
+		contactsList = append(contactsList, contact)
+	}
+
+	return contactsList, nil
+}

@@ -2,6 +2,9 @@ package api
 
 import (
 	"cold_emailer/constants"
+	"cold_emailer/dbmodels/companies"
+	"cold_emailer/dbmodels/contacts"
+	"cold_emailer/dbmodels/email_logs"
 	"cold_emailer/dbmodels/gmailtokens"
 	"cold_emailer/dbmodels/profileinfo"
 	"cold_emailer/storage"
@@ -9,9 +12,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
-	"cold_emailer/dbmodels/contacts"
 	"cold_emailer/gmail"
 	"cold_emailer/openai"
 
@@ -499,5 +502,90 @@ func SendFewFollowUpEmailsHandler(c *gin.Context) {
 	c.JSON(http.StatusAccepted, SendFewFollowUpEmailsResponse{
 		Message: "Follow up email sending started. Check logs for progress.",
 		Count:   req.Count,
+	})
+}
+
+// GetEmailLogsHandler returns paginated email logs with company and contact info
+func GetEmailLogsHandler(c *gin.Context) {
+	page := c.DefaultQuery("page", "1")
+	pageSize := c.DefaultQuery("page_size", "50")
+	stage := c.Query("stage") // Optional filter by email stage
+
+	pageInt := 1
+	pageSizeInt := 50
+
+	if p, err := strconv.Atoi(page); err == nil {
+		pageInt = p
+	}
+	if ps, err := strconv.Atoi(pageSize); err == nil {
+		pageSizeInt = ps
+	}
+
+	offset := (pageInt - 1) * pageSizeInt
+
+	ctx := context.Background()
+	logs, total, err := email_logs.GetEmailLogsWithPagination(ctx, offset, pageSizeInt, stage)
+	if err != nil {
+		utils.Logger.Error().Err(err).Msg("error:")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch email logs"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"logs": logs,
+		"pagination": gin.H{
+			"page":        pageInt,
+			"page_size":   pageSizeInt,
+			"total":       total,
+			"total_pages": (total + pageSizeInt - 1) / pageSizeInt,
+		},
+	})
+}
+
+// GetCompaniesHandler returns all companies
+func GetCompaniesHandler(c *gin.Context) {
+	ctx := context.Background()
+	companies, err := companies.GetAll(ctx)
+	if err != nil {
+		utils.Logger.Error().Err(err).Msg("error:")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch companies"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"companies": companies,
+		"total":     len(companies),
+	})
+}
+
+// GetCompanyContactsHandler returns contacts for a specific company
+func GetCompanyContactsHandler(c *gin.Context) {
+	companyID := c.Param("company_id")
+	if companyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "company_id is required"})
+		return
+	}
+
+	ctx := context.Background()
+	contactsList, err := contacts.GetContactsByCompanyID(ctx, companyID)
+	if err != nil {
+		utils.Logger.Error().Err(err).Msg("error:")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch contacts"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"contacts": contactsList,
+		"total":    len(contactsList),
+	})
+}
+
+// GetSystemConfigHandler returns system configuration including target countries and filters
+func GetSystemConfigHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"target_countries": constants.TargetCountries,
+		"suitable_roles":   constants.SuitableRoles,
+		"company_sizes":    constants.OrganizationEmployeeRanges,
+		"industries":       constants.OrganizationKeywordTags,
 	})
 }
