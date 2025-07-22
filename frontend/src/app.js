@@ -265,9 +265,13 @@ async function selectCompany(companyId, companyName) {
     
     try {
         const data = await fetchAPI(`/companies/${companyId}/contacts`);
+        // Debug log
+        console.log('Contacts API response:', data);
         renderContacts(data.contacts);
     } catch (error) {
         contactsContainer.innerHTML = `<div class="error">❌ Failed to load contacts: ${error.message}</div>`;
+        // Debug log
+        console.error('Contacts API error:', error);
     }
 }
 
@@ -275,7 +279,7 @@ function renderContacts(contacts) {
     const container = document.getElementById('contactsContainer');
     
     if (!contacts || contacts.length === 0) {
-        container.innerHTML = '<div class="loading">👥 No contacts found for this company</div>';
+        container.innerHTML = '<div class="loading">👥 No contacts found for this company.<br><span style="color:#888;font-size:13px;">If you have not run enrichment, please do so to fetch contacts for companies.</span></div>';
         return;
     }
     
