@@ -61,7 +61,7 @@ Create a `.env` file in the root directory:
 
 ```env
 # Server Configuration
-PORT=8080
+PORT=8000
 
 # OpenAI Configuration
 OPENAI_API_KEY=your-openai-api-key
@@ -72,7 +72,7 @@ OPENAI_MAX_COMPLETION_TOKENS=512
 # Gmail OAuth Configuration
 GMAIL_CLIENT_ID=your-gmail-client-id
 GMAIL_CLIENT_SECRET=your-gmail-client-secret
-GMAIL_REDIRECT_URI=http://localhost:8080/gmail-oauth2callback
+GMAIL_REDIRECT_URI=http://localhost:8000/gmail-oauth2callback
 
 # Apollo API Configuration
 APOLLO_API_KEY=your-apollo-api-key
@@ -111,7 +111,7 @@ go run cmd/server/main.go
 ### 5. Verify Installation
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8000/health
 # Response: {"status":"ok"}
 ```
 
@@ -393,13 +393,13 @@ cold_emailer/
    docker-compose up -d --build
    
    # Verify health
-   curl http://localhost:8080/health
+   curl http://localhost:8000/health
    ```
 
 2. **Profile Configuration**
    ```bash
    # Upload profile and resume
-   curl -X POST http://localhost:8080/api/profile \
+   curl -X POST http://localhost:8000/api/profile \
      -F "name=Your Name" \
      -F "email=your.email@example.com" \
      -F "phone=+1234567890" \
@@ -413,43 +413,43 @@ cold_emailer/
 3. **Gmail Authentication**
    ```bash
    # Visit in browser to complete OAuth
-   open http://localhost:8080/gmail-auth-initiate
+   open http://localhost:8000/gmail-auth-initiate
    ```
 
 4. **Database Enrichment**
    ```bash
    # Enrich with companies and contacts
-   curl -X POST http://localhost:8080/api/enrich-database \
+   curl -X POST http://localhost:8000/api/enrich-database \
      -H "Content-Type: application/json" \
      -d '{"count_new_companies": 50, "max_contacts_per_company": 5}'
    
    # Backfill company details
-   curl -X POST http://localhost:8080/api/backfill-company-details
+   curl -X POST http://localhost:8000/api/backfill-company-details
    ```
 
 5. **Start Email Campaign**
    ```bash
    # Send initial outreach emails
-   curl -X POST http://localhost:8080/api/send-few-initial-emails
+   curl -X POST http://localhost:8000/api/send-few-initial-emails
    
    # Check logs
-   curl http://localhost:8080/api/logs
+   curl http://localhost:8000/api/logs
    ```
 
 6. **Follow-up Campaign**
    ```bash
    # Send follow-up emails (after some time)
-   curl -X POST http://localhost:8080/api/send-few-follow-up-emails
+   curl -X POST http://localhost:8000/api/send-few-follow-up-emails
    ```
 
 ### Monitoring and Management
 
 ```bash
 # Check system status
-curl http://localhost:8080/api/status
+curl http://localhost:8000/api/status
 
 # View email logs
-curl http://localhost:8080/api/logs
+curl http://localhost:8000/api/logs
 
 # Check database (direct SQL)
 docker exec -it cold_emailer_db_1 psql -U coldemailer -d coldemailer

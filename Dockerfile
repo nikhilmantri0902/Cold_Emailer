@@ -16,7 +16,7 @@ RUN go mod download
 COPY . .
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8000
 
 # Default command (can be overridden in docker-compose)
 CMD ["go", "run", "cmd/server/main.go"] 

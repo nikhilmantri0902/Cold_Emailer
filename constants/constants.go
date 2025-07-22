@@ -39,7 +39,7 @@ func init() {
 		log.Println("No .env file found, proceeding with system env vars")
 	}
 
-	PORT = getEnv("PORT", "8080")
+	PORT = getEnv("PORT", "8000")
 	OPENAI_API_KEY = getEnv("OPENAI_API_KEY", "")
 	GMAIL_CLIENT_ID = getEnv("GMAIL_CLIENT_ID", "")
 	GMAIL_CLIENT_SECRET = getEnv("GMAIL_CLIENT_SECRET", "")
