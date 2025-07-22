@@ -54,7 +54,6 @@ func main() {
 
 	apiRoutes := r.Group("/api")
 	apiRoutes.POST("/profile", api.UploadProfileHandler)
-	apiRoutes.POST("/targets", api.UploadTargetsHandler)
 	apiRoutes.POST("/generate-email", api.GenerateEmailHandler)
 	apiRoutes.POST("/send-single-email", api.SendSingleEmailHandler)
 	apiRoutes.POST("/enrich-database", api.EnrichDatabaseHandler)

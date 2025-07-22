@@ -133,33 +133,6 @@ func UploadProfileHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// Upload targets (CSV or JSON list)
-func UploadTargetsHandler(c *gin.Context) {
-	var req TargetsUploadRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.Logger.Error().Err(err).Msg("error:")
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "INVALID_TARGETS_DATA",
-			Message: fmt.Sprintf("Invalid targets data: %v", err),
-			Code:    http.StatusBadRequest,
-		})
-		return
-	}
-
-	var targetIDs []string
-	for range req.Targets {
-		targetIDs = append(targetIDs, uuid.New().String())
-	}
-
-	response := TargetsUploadResponse{
-		Message:   fmt.Sprintf("Successfully uploaded %d targets", len(req.Targets)),
-		TargetIDs: targetIDs,
-		Count:     len(req.Targets),
-	}
-
-	c.JSON(http.StatusOK, response)
-}
-
 // Generate personalized email for a target
 func GenerateEmailHandler(c *gin.Context) {
 	var req GenerateEmailRequest

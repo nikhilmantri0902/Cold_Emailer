@@ -31,26 +31,6 @@ type FileInfo struct {
 	UploadedAt   time.Time `json:"uploaded_at"`
 }
 
-// Target upload request/response
-type Target struct {
-	Name        string `json:"name" binding:"required"`
-	Email       string `json:"email" binding:"required,email"`
-	Company     string `json:"company" binding:"required"`
-	Role        string `json:"role" binding:"required"` // e.g. CTO, Recruiter
-	Description string `json:"description,omitempty"`   // Optional
-	LinkedInURL string `json:"linkedin_url,omitempty"`
-}
-
-type TargetsUploadRequest struct {
-	Targets []Target `json:"targets" binding:"required,min=1"`
-}
-
-type TargetsUploadResponse struct {
-	Message   string   `json:"message"`
-	TargetIDs []string `json:"target_ids,omitempty"`
-	Count     int      `json:"count"`
-}
-
 // Email generation request/response
 type GenerateEmailRequest struct {
 	TargetID     string `json:"target_id"`

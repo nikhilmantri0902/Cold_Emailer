@@ -135,14 +135,7 @@ Form Data:
 - resume: file (optional - PDF/DOC)
 ```
 
-#### Upload Target Companies/Contacts
-```http
-POST /api/targets
-Content-Type: multipart/form-data
 
-Form Data:
-- targets: file (CSV with company/contact information)
-```
 
 ### Database Enrichment
 
