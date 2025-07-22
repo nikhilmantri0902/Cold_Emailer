@@ -233,6 +233,7 @@ function renderCompanies(companies) {
     
     const companiesHTML = companies.map(company => `
         <div class="company-card ${selectedCompanyId === company.ID ? 'selected' : ''}" 
+             data-company-id="${company.ID}"
              onclick="selectCompany('${company.ID}', '${escapeHtml(company.Name || 'Unknown Company')}')">
             <div class="company-name">${escapeHtml(company.Name || 'Unknown Company')}</div>
             <div class="company-info">🌐 ${escapeHtml(company.Website || 'No website')}</div>
@@ -252,12 +253,22 @@ async function selectCompany(companyId, companyName) {
     document.querySelectorAll('.company-card').forEach(card => {
         card.classList.remove('selected');
     });
-    event.target.closest('.company-card').classList.add('selected');
+    
+    // Find and select the clicked company card
+    const clickedCard = document.querySelector(`[data-company-id="${companyId}"]`);
+    if (clickedCard) {
+        clickedCard.classList.add('selected');
+    }
     
     // Show contacts section
     const contactsSection = document.getElementById('contactsSection');
     const selectedCompanyNameSpan = document.getElementById('selectedCompanyName');
     const contactsContainer = document.getElementById('contactsContainer');
+    
+    if (!contactsSection || !selectedCompanyNameSpan || !contactsContainer) {
+        console.error('Missing DOM elements for contacts section');
+        return;
+    }
     
     selectedCompanyNameSpan.textContent = companyName;
     contactsSection.style.display = 'block';
@@ -265,20 +276,30 @@ async function selectCompany(companyId, companyName) {
     
     try {
         const data = await fetchAPI(`/companies/${companyId}/contacts`);
+        console.log('Contacts data received:', data);
         renderContacts(data.contacts);
     } catch (error) {
+        console.error('Error loading contacts:', error);
         contactsContainer.innerHTML = `<div class="error">❌ Failed to load contacts: ${error.message}</div>`;
     }
 }
 
 function renderContacts(contacts) {
+    console.log('renderContacts called with:', contacts);
     const container = document.getElementById('contactsContainer');
     
+    if (!container) {
+        console.error('contactsContainer element not found');
+        return;
+    }
+    
     if (!contacts || contacts.length === 0) {
+        console.log('No contacts found or empty contacts array');
         container.innerHTML = '<div class="loading">👥 No contacts found for this company</div>';
         return;
     }
     
+    console.log(`Rendering ${contacts.length} contacts`);
     const contactsHTML = contacts.map(contact => `
         <div class="contact-item">
             <div class="contact-name">${escapeHtml(contact.Name || 'Unknown Contact')}</div>
@@ -292,6 +313,7 @@ function renderContacts(contacts) {
     `).join('');
     
     container.innerHTML = contactsHTML;
+    console.log('Contacts rendered successfully');
 }
 
 // Tab switching
