@@ -36,7 +36,13 @@ var (
 	OrganizationKeywordTags = []string{"technology", "software", "IT", "artificial intelligence"}
 )
 
-var ()
+const (
+	JobNameEnrichCompaniesAndContacts = "ENRICH_COMPANIES_AND_CONTACTS"
+	JobNameBackfillCompanyDetails     = "BACKFILL_COMPANY_DETAILS"
+	JobNameGenerateEmails             = "GENERATE_EMAILS"
+	JobNameSendEmails                 = "SEND_EMAILS"
+	JobNameSendEmailFollowUp          = "SEND_FOLLOW_UP_EMAILS"
+)
 
 func init() {
 	// Load env vars from .env

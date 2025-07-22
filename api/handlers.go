@@ -6,6 +6,7 @@ import (
 	"cold_emailer/dbmodels/contacts"
 	"cold_emailer/dbmodels/email_logs"
 	"cold_emailer/dbmodels/gmailtokens"
+	"cold_emailer/dbmodels/jobs"
 	"cold_emailer/dbmodels/profileinfo"
 	"cold_emailer/storage"
 	"context"
@@ -202,49 +203,6 @@ func GenerateEmailHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// Get status of sent emails
-func StatusHandler(c *gin.Context) {
-	// TODO: Return email send status from DB
-	response := StatusResponse{
-		Status: "ok",
-		Emails: []EmailStatus{
-			{
-				EmailID:     "sample-email-id",
-				TargetID:    "sample-target-id",
-				TargetName:  "John Doe",
-				TargetEmail: "john@example.com",
-				Company:     "Example Corp",
-				Status:      "sent",
-				SentAt:      time.Now(),
-			},
-		},
-		Total:   1,
-		Success: 1,
-		Failed:  0,
-	}
-
-	c.JSON(http.StatusOK, response)
-}
-
-// Get logs (basic)
-func LogsHandler(c *gin.Context) {
-	// TODO: Return recent operation logs
-	response := LogsResponse{
-		Logs: []LogEntry{
-			{
-				ID:        "log-1",
-				Level:     "info",
-				Message:   "Profile uploaded successfully",
-				Timestamp: time.Now(),
-				Category:  "upload",
-			},
-		},
-		Total: 1,
-	}
-
-	c.JSON(http.StatusOK, response)
-}
-
 // Gmail OAuth2: Initiate auth flow
 func GmailAuthInitiateHandler(c *gin.Context) {
 	state := "state-token" // In production, generate a random state and validate it in callback
@@ -353,7 +311,41 @@ func EnrichDatabaseHandler(c *gin.Context) {
 
 	utils.Logger.Info().Int("company_count", companyCount).Int("max_contacts_per_company", maxContactsPerCompany).Msg("company_count:")
 	go func() {
-		err := EnrichDBWithCompaniesAndContacts(context.Background(), companyCount, maxContactsPerCompany)
+
+		ctx := context.Background()
+		jobID := utils.GenerateUUID()
+		var err error
+		jobID, err = jobs.Insert(ctx, jobs.JobForSet{
+			ID:     jobID,
+			Name:   constants.JobNameEnrichCompaniesAndContacts,
+			Status: jobs.StatusActive,
+			Metadata: utils.MarshalInterface(
+				map[string]interface{}{
+					"request_params": map[string]interface{}{
+						"company_count":            companyCount,
+						"max_contacts_per_company": maxContactsPerCompany,
+					},
+				},
+			),
+		})
+
+		defer func(jobID string) {
+			status := jobs.StatusCompleted
+			message := "Enrichment complete"
+
+			if err != nil {
+				status = jobs.StatusFailed
+				message = fmt.Sprintf("Enrichment failed: %v", err)
+			}
+
+			jobs.Update(ctx, jobs.UpdateInput{
+				ID:      jobID,
+				Status:  &status,
+				Message: &message,
+			})
+		}(jobID)
+
+		err = EnrichDBWithCompaniesAndContacts(ctx, companyCount, maxContactsPerCompany)
 		if err != nil {
 			utils.Logger.Error().Err(err).Msg("err:")
 			return
@@ -367,11 +359,44 @@ func EnrichDatabaseHandler(c *gin.Context) {
 // EnrichDatabaseHandler triggers Apollo enrichment and returns the result
 func BackfillCompanyDetails(c *gin.Context) {
 	go func() {
-		err := BackFillCompanyDetailsFunc(context.Background())
+		ctx := context.Background()
+		jobID := utils.GenerateUUID()
+		var err error
+		jobID, err = jobs.Insert(ctx, jobs.JobForSet{
+			ID:     jobID,
+			Name:   constants.JobNameBackfillCompanyDetails,
+			Status: jobs.StatusActive,
+			Metadata: utils.MarshalInterface(
+				map[string]interface{}{
+					"request_params": map[string]interface{}{
+						"operation": "backfill_company_details",
+					},
+				},
+			),
+		})
+
+		defer func(jobID string) {
+			status := jobs.StatusCompleted
+			message := "Backfill complete"
+
+			if err != nil {
+				status = jobs.StatusFailed
+				message = fmt.Sprintf("Backfill failed: %v", err)
+			}
+
+			jobs.Update(ctx, jobs.UpdateInput{
+				ID:      jobID,
+				Status:  &status,
+				Message: &message,
+			})
+		}(jobID)
+
+		err = BackFillCompanyDetailsFunc(ctx)
 		if err != nil {
 			utils.Logger.Error().Err(err).Msg("err:")
 			return
 		}
+		utils.Logger.Info().Msg("Backfill complete")
 	}()
 	c.JSON(http.StatusAccepted, gin.H{"message": "Backfilling started. Check logs for progress."})
 }
@@ -423,6 +448,38 @@ func SendFewInitialEmailsHandler(c *gin.Context) {
 	// Start email sending in goroutine
 	go func() {
 		ctx := context.Background()
+		jobID := utils.GenerateUUID()
+		var err error
+		jobID, err = jobs.Insert(ctx, jobs.JobForSet{
+			ID:     jobID,
+			Name:   constants.JobNameSendEmails,
+			Status: jobs.StatusActive,
+			Metadata: utils.MarshalInterface(
+				map[string]interface{}{
+					"request_params": map[string]interface{}{
+						"count":  req.Count,
+						"status": req.Status,
+					},
+				},
+			),
+		})
+
+		defer func(jobID string) {
+			status := jobs.StatusCompleted
+			message := "Email sending complete"
+
+			if err != nil {
+				status = jobs.StatusFailed
+				message = fmt.Sprintf("Email sending failed: %v", err)
+			}
+
+			jobs.Update(ctx, jobs.UpdateInput{
+				ID:      jobID,
+				Status:  &status,
+				Message: &message,
+			})
+		}(jobID)
+
 		utils.Logger.Info().Int("count", req.Count).Str("status", req.Status).Msg("Starting to send initial emails to contacts with status:")
 
 		err = GenerateAndSendEmails(ctx, req.Count, req.Status)
@@ -430,6 +487,7 @@ func SendFewInitialEmailsHandler(c *gin.Context) {
 			utils.Logger.Error().Err(err).Msg("err:")
 			return
 		}
+		utils.Logger.Info().Msg("Email sending complete")
 	}()
 
 	c.JSON(http.StatusAccepted, SendFewInitialEmailsResponse{
@@ -490,6 +548,39 @@ func SendFewFollowUpEmailsHandler(c *gin.Context) {
 	// Start email sending in goroutine
 	go func() {
 		ctx := context.Background()
+		jobID := utils.GenerateUUID()
+		var err error
+		jobID, err = jobs.Insert(ctx, jobs.JobForSet{
+			ID:     jobID,
+			Name:   constants.JobNameSendEmailFollowUp,
+			Status: jobs.StatusActive,
+			Metadata: utils.MarshalInterface(
+				map[string]interface{}{
+					"request_params": map[string]interface{}{
+						"count":                 req.Count,
+						"status":                req.Status,
+						"days_past_first_email": req.DaysPastFirstEmail,
+					},
+				},
+			),
+		})
+
+		defer func(jobID string) {
+			status := jobs.StatusCompleted
+			message := "Follow up email sending complete"
+
+			if err != nil {
+				status = jobs.StatusFailed
+				message = fmt.Sprintf("Follow up email sending failed: %v", err)
+			}
+
+			jobs.Update(ctx, jobs.UpdateInput{
+				ID:      jobID,
+				Status:  &status,
+				Message: &message,
+			})
+		}(jobID)
+
 		utils.Logger.Info().Int("count", req.Count).Str("status", req.Status).Msg("Starting to send follow up emails to contacts with status:")
 
 		err = GenerateAndSendFollowUpEmails(ctx, req.DaysPastFirstEmail, req.Count, req.Status)
@@ -497,6 +588,7 @@ func SendFewFollowUpEmailsHandler(c *gin.Context) {
 			utils.Logger.Error().Err(err).Msg("err:")
 			return
 		}
+		utils.Logger.Info().Msg("Follow up email sending complete")
 	}()
 
 	c.JSON(http.StatusAccepted, SendFewFollowUpEmailsResponse{

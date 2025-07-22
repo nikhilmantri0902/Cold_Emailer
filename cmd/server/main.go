@@ -70,8 +70,6 @@ func main() {
 	apiRoutes.POST("/backfill-company-details", api.BackfillCompanyDetails)
 	apiRoutes.POST("/send-few-initial-emails", api.SendFewInitialEmailsHandler)
 	apiRoutes.POST("/send-few-follow-up-emails", api.SendFewFollowUpEmailsHandler)
-	apiRoutes.GET("/status", api.StatusHandler)
-	apiRoutes.GET("/logs", api.LogsHandler)
 	// New endpoints for frontend
 	apiRoutes.GET("/email-logs", api.GetEmailLogsHandler)
 	apiRoutes.GET("/companies", api.GetCompaniesHandler)

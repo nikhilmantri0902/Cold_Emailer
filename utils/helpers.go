@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -39,4 +40,13 @@ func Itoa(i int) string {
 // generateUUID generates a simple UUID-like string
 func GenerateUUID() string {
 	return uuid.New().String()
+}
+
+func MarshalInterface(v interface{}) string {
+	json, err := json.Marshal(v)
+	if err != nil {
+		Logger.Error().Err(err).Msg("error marshalling interface")
+		return ""
+	}
+	return string(json)
 }
