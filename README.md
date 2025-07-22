@@ -601,6 +601,13 @@ curl http://localhost:3000
 curl http://localhost:3000/api/companies
 ```
 
+**Contacts not showing for a company?**
+
+If you click a company card in the dashboard and see "No contacts found for this company":
+- Ensure you have run the enrichment process (see step 5 in Usage Workflow) to fetch contacts for companies.
+- If enrichment has been run and you still see no contacts, check backend logs for errors.
+- You can also open the browser console (F12) to see debug logs for the contacts API response.
+
 #### Gmail Authentication Issues
 - Verify redirect URI matches exactly in Google Cloud Console
 - Check OAuth scopes are properly configured
