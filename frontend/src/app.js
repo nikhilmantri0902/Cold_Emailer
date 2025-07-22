@@ -238,8 +238,6 @@ function renderCompanies(companies) {
             <div class="company-name">${escapeHtml(company.Name || 'Unknown Company')}</div>
             <div class="company-info">🌐 ${escapeHtml(company.Website || 'No website')}</div>
             <div class="company-info">🏭 ${escapeHtml(company.Industry || 'No industry')}</div>
-            <div class="company-info">💻 ${escapeHtml(company.TechDetails || 'No tech details')}</div>
-            <div class="company-info">📝 ${escapeHtml((company.CompanyDetails || 'No description').substring(0, 100))}${(company.CompanyDetails || '').length > 100 ? '...' : ''}</div>
         </div>
     `).join('');
     
@@ -260,6 +258,9 @@ async function selectCompany(companyId, companyName) {
         clickedCard.classList.add('selected');
     }
     
+    // Find the selected company data
+    const selectedCompany = allCompanies.find(company => company.ID === companyId);
+    
     // Show contacts section
     const contactsSection = document.getElementById('contactsSection');
     const selectedCompanyNameSpan = document.getElementById('selectedCompanyName');
@@ -272,31 +273,52 @@ async function selectCompany(companyId, companyName) {
     
     selectedCompanyNameSpan.textContent = companyName;
     contactsSection.style.display = 'block';
-    contactsContainer.innerHTML = '<div class="loading">⏳ Loading contacts...</div>';
+    
+    // Display detailed company information
+    const companyDetailsHTML = selectedCompany ? `
+        <div class="company-details">
+            <div class="company-detail-item">
+                <strong>🌐 Website:</strong> 
+                ${selectedCompany.Website ? `<a href="${escapeHtml(selectedCompany.Website)}" target="_blank">${escapeHtml(selectedCompany.Website)}</a>` : 'Not provided'}
+            </div>
+            <div class="company-detail-item">
+                <strong>🏭 Industry:</strong> ${escapeHtml(selectedCompany.Industry || 'Not specified')}
+            </div>
+            <div class="company-detail-item">
+                <strong>💻 Technology Stack:</strong>
+                <div class="tech-stack">${escapeHtml(selectedCompany.TechDetails || 'Not available')}</div>
+            </div>
+            <div class="company-detail-item">
+                <strong>📝 About Company:</strong>
+                <div class="company-description">${escapeHtml(selectedCompany.CompanyDetails || 'No description available')}</div>
+            </div>
+        </div>
+        <div class="contacts-divider">
+            <h4>👥 Contacts (${selectedCompany.Name || 'Company'})</h4>
+        </div>
+    ` : '';
+    
+    contactsContainer.innerHTML = companyDetailsHTML + '<div class="loading">⏳ Loading contacts...</div>';
     
     try {
         const data = await fetchAPI(`/companies/${companyId}/contacts`);
         console.log('Contacts data received:', data);
-        renderContacts(data.contacts);
+        
+        // Keep the company details and add contacts
+        const contactsHTML = renderContactsHTML(data.contacts);
+        contactsContainer.innerHTML = companyDetailsHTML + contactsHTML;
     } catch (error) {
         console.error('Error loading contacts:', error);
-        contactsContainer.innerHTML = `<div class="error">❌ Failed to load contacts: ${error.message}</div>`;
+        contactsContainer.innerHTML = companyDetailsHTML + `<div class="error">❌ Failed to load contacts: ${error.message}</div>`;
     }
 }
 
-function renderContacts(contacts) {
-    console.log('renderContacts called with:', contacts);
-    const container = document.getElementById('contactsContainer');
-    
-    if (!container) {
-        console.error('contactsContainer element not found');
-        return;
-    }
+function renderContactsHTML(contacts) {
+    console.log('renderContactsHTML called with:', contacts);
     
     if (!contacts || contacts.length === 0) {
         console.log('No contacts found or empty contacts array');
-        container.innerHTML = '<div class="loading">👥 No contacts found for this company</div>';
-        return;
+        return '<div class="loading">👥 No contacts found for this company</div>';
     }
     
     console.log(`Rendering ${contacts.length} contacts`);
@@ -312,8 +334,19 @@ function renderContacts(contacts) {
         </div>
     `).join('');
     
-    container.innerHTML = contactsHTML;
     console.log('Contacts rendered successfully');
+    return contactsHTML;
+}
+
+function renderContacts(contacts) {
+    const container = document.getElementById('contactsContainer');
+    
+    if (!container) {
+        console.error('contactsContainer element not found');
+        return;
+    }
+    
+    container.innerHTML = renderContactsHTML(contacts);
 }
 
 // Tab switching
