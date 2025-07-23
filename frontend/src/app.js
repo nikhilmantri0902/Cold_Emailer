@@ -1,5 +1,5 @@
 // Configuration
-const API_BASE_URL = '/api';
+const API_BASE_URL = '/frontend';
 
 // Global state
 let currentPage = 1;

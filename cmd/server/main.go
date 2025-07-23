@@ -70,11 +70,13 @@ func main() {
 	apiRoutes.POST("/backfill-company-details", api.BackfillCompanyDetails)
 	apiRoutes.POST("/send-few-initial-emails", api.SendFewInitialEmailsHandler)
 	apiRoutes.POST("/send-few-follow-up-emails", api.SendFewFollowUpEmailsHandler)
-	// New endpoints for frontend
-	apiRoutes.GET("/email-logs", api.GetEmailLogsHandler)
-	apiRoutes.GET("/companies", api.GetCompaniesHandler)
-	apiRoutes.GET("/companies/:company_id/contacts", api.GetCompanyContactsHandler)
-	apiRoutes.GET("/config", api.GetSystemConfigHandler)
+
+	// Frontend API endpoints
+	frontendRoutes := r.Group("/frontend")
+	frontendRoutes.GET("/email-logs", api.GetEmailLogsHandler)
+	frontendRoutes.GET("/companies", api.GetCompaniesHandler)
+	frontendRoutes.GET("/companies/:company_id/contacts", api.GetCompanyContactsHandler)
+	frontendRoutes.GET("/config", api.GetSystemConfigHandler)
 
 	// Gmail OAuth2 endpoints
 	r.GET("/gmail-auth-initiate", api.GmailAuthInitiateHandler)
