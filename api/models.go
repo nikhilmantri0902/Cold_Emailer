@@ -106,3 +106,28 @@ type SuccessResponse struct {
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 }
+
+// SendFewInitialEmailsRequest is the request body for sending initial emails
+type SendFewInitialEmailsRequest struct {
+	Count  int    `json:"count" binding:"min=1,max=50"`
+	Status string `json:"status,omitempty"` // Optional status filter for contacts
+}
+
+// SendFewInitialEmailsResponse is the response for the initial emails endpoint
+type SendFewInitialEmailsResponse struct {
+	Message string `json:"message"`
+	Count   int    `json:"count"`
+}
+
+// SendFewFollowUpmailsRequest is the request body for sending follow up emails
+type SendFewFollowUpmailsRequest struct {
+	Count              int    `json:"count" binding:"min=1,max=50"`
+	Status             string `json:"status,omitempty"` // Optional status filter for contacts
+	DaysPastFirstEmail int    `json:"days_past_first_email,omitempty"`
+}
+
+// SendFewFollowUpEmailsResponse is the response for the follow up emails endpoint
+type SendFewFollowUpEmailsResponse struct {
+	Message string `json:"message"`
+	Count   int    `json:"count"`
+}
