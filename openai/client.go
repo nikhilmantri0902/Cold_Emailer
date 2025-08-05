@@ -3,13 +3,19 @@ package openai
 import (
 	"bytes"
 	"cold_emailer/constants"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"cold_emailer/utils"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // OpenAIClient handles requests to the OpenAI API
@@ -140,6 +146,28 @@ func (c *OpenAIClient) GenerateEmail(prompt string) (string, error) {
 
 // GeneratePersonalizedEmail generates a personalized email for a specific contact
 func (c *OpenAIClient) GeneratePersonalizedEmail(data EmailGenerationData) (subject, body string, err error) {
+	tracer := otel.Tracer(constants.SERVICE_NAME)
+
+	log.Println("Generating personalized email for ", data.ContactName)
+	_, span := tracer.Start(context.Background(), "generate-personalized-email")
+
+	spanStartTime := time.Now()
+	defer func() {
+		loc, _ := time.LoadLocation("Asia/Kolkata")
+		span.SetAttributes(attribute.String("email_generation_start_time", spanStartTime.In(loc).Format(time.RFC3339)))
+		span.SetAttributes(attribute.String("email_generation_completion_time", time.Now().In(loc).Format(time.RFC3339)))
+		span.SetAttributes(attribute.String("email_generation_duration", time.Since(spanStartTime).String()))
+		span.End()
+	}()
+
+	span.SetAttributes(attribute.String("contact_name", data.ContactName),
+		attribute.String("contact_role", data.ContactRole),
+		attribute.String("contact_linkedin", data.ContactLinkedIn),
+		attribute.String("company_name", data.CompanyName),
+		attribute.String("company_website", data.CompanyWebsite),
+		attribute.String("company_industry", data.CompanyIndustry),
+	)
+
 	prompt := fmt.Sprintf(`
 Generate a personalized cold outreach email for a job opportunity. 
 
@@ -260,6 +288,9 @@ Generate both a compelling subject line and the email body.
 	body = strings.TrimPrefix(body, "Body:")
 	body = strings.TrimPrefix(body, "EMAIL:")
 	body = strings.TrimSpace(body)
+
+	span.AddEvent("Email generation complete")
+	log.Println("Email generation complete for ", data.ContactName)
 
 	return subject, body, nil
 }

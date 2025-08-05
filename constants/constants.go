@@ -18,6 +18,9 @@ var (
 	OPENAI_TEMPERATURE           float32
 	OPENAI_MAX_COMPLETION_TOKENS int
 	APOLLO_API_KEY               string
+	SERVICE_NAME                 string
+	COLLECTOR_URL                string
+	INSECURE_MODE                string
 )
 
 // constants
@@ -60,6 +63,9 @@ func init() {
 	OPENAI_TEMPERATURE = getEnvFloat32("OPENAI_TEMPERATURE", 0.7)
 	OPENAI_MAX_COMPLETION_TOKENS = getEnvInt("OPENAI_MAX_COMPLETION_TOKENS", 512)
 	APOLLO_API_KEY = getEnv("APOLLO_API_KEY", "")
+	SERVICE_NAME = getEnv("SERVICE_NAME", "cold_emailer")
+	COLLECTOR_URL = getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317")
+	INSECURE_MODE = getEnv("INSECURE_MODE", "true")
 }
 
 func PrintENV() {
@@ -72,4 +78,7 @@ func PrintENV() {
 	log.Printf("OPENAI_TEMPERATURE: %s", OPENAI_TEMPERATURE)
 	log.Printf("OPENAI_MAX_COMPLETION_TOKENS: %s", OPENAI_MAX_COMPLETION_TOKENS)
 	log.Printf("APOLLO_API_KEY: %s", APOLLO_API_KEY)
+	log.Printf("SERVICE_NAME: %s", SERVICE_NAME)
+	log.Printf("COLLECTOR_URL: %s", COLLECTOR_URL)
+	log.Printf("INSECURE_MODE: %s", INSECURE_MODE)
 }

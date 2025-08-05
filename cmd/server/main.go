@@ -26,17 +26,11 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-var (
-	serviceName  = os.Getenv("SERVICE_NAME")
-	collectorURL = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	insecure     = os.Getenv("INSECURE_MODE")
-)
-
 func initTracer() func(context.Context) error {
 
 	var secureOption otlptracegrpc.Option
 
-	if strings.ToLower(insecure) == "false" || insecure == "0" || strings.ToLower(insecure) == "f" {
+	if strings.ToLower(constants.INSECURE_MODE) == "false" || constants.INSECURE_MODE == "0" || strings.ToLower(constants.INSECURE_MODE) == "f" {
 		secureOption = otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, ""))
 	} else {
 		secureOption = otlptracegrpc.WithInsecure()
@@ -46,7 +40,7 @@ func initTracer() func(context.Context) error {
 		context.Background(),
 		otlptracegrpc.NewClient(
 			secureOption,
-			otlptracegrpc.WithEndpoint(collectorURL),
+			otlptracegrpc.WithEndpoint(constants.COLLECTOR_URL),
 		),
 	)
 
@@ -56,7 +50,7 @@ func initTracer() func(context.Context) error {
 	resources, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
-			attribute.String("service.name", serviceName),
+			attribute.String("service.name", constants.SERVICE_NAME),
 			attribute.String("library.language", "go"),
 		),
 	)
@@ -94,9 +88,9 @@ func main() {
 	}
 
 	constants.PrintENV()
-	log.Println("SERVICE_NAME: ", serviceName)
-	log.Println("OTEL_EXPORTER_OTLP_ENDPOINT: ", collectorURL)
-	log.Println("INSECURE_MODE: ", insecure)
+	log.Println("SERVICE_NAME: ", constants.SERVICE_NAME)
+	log.Println("OTEL_EXPORTER_OTLP_ENDPOINT: ", constants.COLLECTOR_URL)
+	log.Println("INSECURE_MODE: ", constants.INSECURE_MODE)
 
 	// Initialize DB (singleton)
 	if err := db.InitDB(constants.PG_DB_URL); err != nil {
@@ -114,7 +108,7 @@ func main() {
 
 	// Initialize Gin
 	r := gin.Default()
-	r.Use(otelgin.Middleware(serviceName))
+	r.Use(otelgin.Middleware(constants.SERVICE_NAME))
 
 	// Add CORS middleware
 	r.Use(cors.New(cors.Config{
