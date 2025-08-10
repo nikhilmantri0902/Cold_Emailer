@@ -139,6 +139,8 @@ func main() {
 	frontendRoutes.GET("/companies", api.GetCompaniesHandler)
 	frontendRoutes.GET("/companies/:company_id/contacts", api.GetCompanyContactsHandler)
 	frontendRoutes.GET("/config", api.GetSystemConfigHandler)
+	frontendRoutes.GET("/job-status", api.GetJobStatusHandler)
+	frontendRoutes.POST("/enrich-database", api.EnrichDatabaseHandler)
 
 	// Gmail OAuth2 endpoints
 	r.GET("/gmail-auth-initiate", api.GmailAuthInitiateHandler)

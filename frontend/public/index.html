@@ -367,6 +367,25 @@
             border-radius: 4px;
             margin-bottom: 20px;
         }
+
+        .spinner {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .btn:disabled:hover {
+            background: #6c757d;
+        }
     </style>
 </head>
 <body>
@@ -426,6 +445,11 @@
                     </div>
                     <button class="btn" onclick="filterCompanies()">🔍 Search</button>
                     <button class="btn" onclick="loadCompanies()">🔄 Refresh</button>
+                    <button class="btn" id="enrichBtn" onclick="enrichDatabase()">🚀 Enrich Companies & Contacts</button>
+                    <div id="enrichStatus" style="display: none; margin-left: 10px;">
+                        <span id="enrichSpinner" class="spinner">⏳</span>
+                        <span id="enrichMessage">Enriching database...</span>
+                    </div>
                 </div>
 
                 <div id="companiesContainer">

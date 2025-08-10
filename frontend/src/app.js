@@ -9,6 +9,7 @@ let allCompanies = [];
 let filteredCompanies = [];
 let selectedCompanyId = null;
 let systemConfig = null;
+let enrichJobPollingInterval = null;
 
 // Utility functions
 function showError(message) {
@@ -402,9 +403,111 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// Enrich Database functions
+async function enrichDatabase() {
+    const enrichBtn = document.getElementById('enrichBtn');
+    const enrichStatus = document.getElementById('enrichStatus');
+    const enrichMessage = document.getElementById('enrichMessage');
+    
+    // Disable button and show status
+    enrichBtn.disabled = true;
+    enrichStatus.style.display = 'inline-block';
+    enrichMessage.textContent = 'Starting enrichment...';
+    
+    try {
+        // Trigger the enrich database operation
+        const response = await fetchAPI('/enrich-database', {
+            method: 'POST',
+            body: JSON.stringify({
+                company_count: 50,
+                max_contacts_per_company: 5
+            })
+        });
+        
+        console.log('Enrich database response:', response);
+        
+        // Start polling for job status
+        startJobStatusPolling('ENRICH_COMPANIES_AND_CONTACTS');
+        
+    } catch (error) {
+        console.error('Failed to start enrichment:', error);
+        enrichMessage.textContent = `Error: ${error.message}`;
+        enrichBtn.disabled = false;
+        enrichStatus.style.display = 'none';
+    }
+}
+
+function startJobStatusPolling(jobName) {
+    const enrichBtn = document.getElementById('enrichBtn');
+    const enrichStatus = document.getElementById('enrichStatus');
+    const enrichMessage = document.getElementById('enrichMessage');
+    
+    // Clear any existing polling
+    if (enrichJobPollingInterval) {
+        clearInterval(enrichJobPollingInterval);
+    }
+    
+    // Start polling every 2 seconds
+    enrichJobPollingInterval = setInterval(async () => {
+        try {
+            const response = await fetchAPI(`/job-status?job_name=${encodeURIComponent(jobName)}`);
+            
+            console.log('Job status response:', response);
+            
+            switch (response.status) {
+                case 'ACTIVE':
+                    enrichMessage.textContent = 'Enriching database... (Active)';
+                    break;
+                    
+                case 'COMPLETED':
+                    clearInterval(enrichJobPollingInterval);
+                    enrichJobPollingInterval = null;
+                    enrichMessage.textContent = '✅ Enrichment completed successfully!';
+                    enrichBtn.disabled = false;
+                    
+                    // Reload companies after successful enrichment
+                    setTimeout(() => {
+                        loadCompanies();
+                        enrichStatus.style.display = 'none';
+                    }, 2000);
+                    break;
+                    
+                case 'FAILED':
+                    clearInterval(enrichJobPollingInterval);
+                    enrichJobPollingInterval = null;
+                    enrichMessage.textContent = `❌ Enrichment failed: ${response.message || 'Unknown error'}`;
+                    enrichBtn.disabled = false;
+                    
+                    setTimeout(() => {
+                        enrichStatus.style.display = 'none';
+                    }, 5000);
+                    break;
+                    
+                default:
+                    enrichMessage.textContent = `Status: ${response.status}`;
+                    break;
+            }
+            
+        } catch (error) {
+            console.error('Failed to check job status:', error);
+            enrichMessage.textContent = `Error checking status: ${error.message}`;
+            
+            // Stop polling on error
+            clearInterval(enrichJobPollingInterval);
+            enrichJobPollingInterval = null;
+            enrichBtn.disabled = false;
+            
+            setTimeout(() => {
+                enrichStatus.style.display = 'none';
+            }, 5000);
+        }
+    }, 2000);
+}
+
 // Expose functions to global scope for onclick handlers
 window.switchTab = switchTab;
 window.loadEmailLogs = loadEmailLogs;
 window.loadCompanies = loadCompanies;
 window.filterCompanies = filterCompanies;
-window.selectCompany = selectCompany; 
+window.selectCompany = selectCompany;
+window.enrichDatabase = enrichDatabase; 

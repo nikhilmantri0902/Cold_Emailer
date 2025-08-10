@@ -21,6 +21,8 @@ import (
 
 	"cold_emailer/utils"
 
+	"database/sql"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -654,5 +656,35 @@ func GetSystemConfigHandler(c *gin.Context) {
 		"suitable_roles":   constants.SuitableRoles,
 		"company_sizes":    constants.OrganizationEmployeeRanges,
 		"industries":       constants.OrganizationKeywordTags,
+	})
+}
+
+// GetJobStatusHandler returns the status of a job by name
+func GetJobStatusHandler(c *gin.Context) {
+	jobName := c.Query("job_name")
+	if jobName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "job_name query parameter is required"})
+		return
+	}
+
+	ctx := context.Background()
+	job, err := jobs.GetByName(ctx, jobName, "")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to get job status: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"job_id":       job.ID,
+		"job_name":     job.Name,
+		"status":       job.Status,
+		"message":      job.Message,
+		"created_at":   job.CreatedAt,
+		"completed_at": job.CompletedAt,
+		"metadata":     job.Metadata,
 	})
 }
