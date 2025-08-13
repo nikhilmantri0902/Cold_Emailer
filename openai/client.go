@@ -149,10 +149,12 @@ func (c *OpenAIClient) GenerateEmail(prompt string) (string, error) {
 func (c *OpenAIClient) GeneratePersonalizedEmail(data EmailGenerationData) (subject, body string, err error) {
 	tracer := otel.Tracer(constants.SERVICE_NAME)
 
-	log.Println("Generating personalized email for ", data.ContactName)
+	log.Println("====> Generating personalized email for ", data.ContactName)
 
 	// You can set a custom start time here
-	customStartTime := time.Now() // Replace with your desired start time
+	loc, _ := time.LoadLocation("Asia/Kolkata")
+	// 13th august 2025, 10 am IST
+	customStartTime := time.Date(2025, time.August, 13, 10, 0, 0, 0, loc)
 
 	// Create span with custom start time using trace.WithTimestamp
 	ctx := context.Background()
@@ -161,14 +163,16 @@ func (c *OpenAIClient) GeneratePersonalizedEmail(data EmailGenerationData) (subj
 	)
 
 	defer func() {
-		loc, _ := time.LoadLocation("Asia/Kolkata")
+
 		span.SetAttributes(attribute.String("email_generation_start_time", customStartTime.In(loc).Format(time.RFC3339)))
-		span.SetAttributes(attribute.String("email_generation_completion_time", time.Now().In(loc).Format(time.RFC3339)))
-		span.SetAttributes(attribute.String("email_generation_duration", time.Since(customStartTime).String()))
+		// 13th august 2025, 11 am IST
+		customEndTime := time.Date(2025, time.August, 13, 11, 0, 0, 0, loc)
+		span.SetAttributes(attribute.String("email_generation_completion_time", customEndTime.In(loc).Format(time.RFC3339)))
+
+		fmt.Printf("===> Custom Start Time: %s\n", customStartTime.In(loc).Format(time.RFC3339))
+		fmt.Printf("===> Custom End Time: %s\n", customEndTime.In(loc).Format(time.RFC3339))
 
 		// You can set a custom end time here
-		customEndTime := time.Now() // Replace with your desired end time
-
 		// End the span with custom timestamp
 		span.End(trace.WithTimestamp(customEndTime))
 	}()
@@ -303,7 +307,7 @@ Generate both a compelling subject line and the email body.
 	body = strings.TrimSpace(body)
 
 	span.AddEvent("Email generation complete")
-	log.Println("Email generation complete for ", data.ContactName)
+	log.Println("====> Email generation complete for ", data.ContactName)
 
 	return subject, body, nil
 }
