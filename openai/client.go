@@ -16,6 +16,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // OpenAIClient handles requests to the OpenAI API
@@ -149,15 +150,27 @@ func (c *OpenAIClient) GeneratePersonalizedEmail(data EmailGenerationData) (subj
 	tracer := otel.Tracer(constants.SERVICE_NAME)
 
 	log.Println("Generating personalized email for ", data.ContactName)
-	_, span := tracer.Start(context.Background(), "generate-personalized-email")
 
-	spanStartTime := time.Now()
+	// You can set a custom start time here
+	customStartTime := time.Now() // Replace with your desired start time
+
+	// Create span with custom start time using trace.WithTimestamp
+	ctx := context.Background()
+	_, span := tracer.Start(ctx, "generate-personalized-email",
+		trace.WithTimestamp(customStartTime),
+	)
+
 	defer func() {
 		loc, _ := time.LoadLocation("Asia/Kolkata")
-		span.SetAttributes(attribute.String("email_generation_start_time", spanStartTime.In(loc).Format(time.RFC3339)))
+		span.SetAttributes(attribute.String("email_generation_start_time", customStartTime.In(loc).Format(time.RFC3339)))
 		span.SetAttributes(attribute.String("email_generation_completion_time", time.Now().In(loc).Format(time.RFC3339)))
-		span.SetAttributes(attribute.String("email_generation_duration", time.Since(spanStartTime).String()))
-		span.End()
+		span.SetAttributes(attribute.String("email_generation_duration", time.Since(customStartTime).String()))
+
+		// You can set a custom end time here
+		customEndTime := time.Now() // Replace with your desired end time
+
+		// End the span with custom timestamp
+		span.End(trace.WithTimestamp(customEndTime))
 	}()
 
 	span.SetAttributes(attribute.String("contact_name", data.ContactName),
