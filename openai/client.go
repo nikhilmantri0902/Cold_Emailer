@@ -154,11 +154,11 @@ func (c *OpenAIClient) GeneratePersonalizedEmail(data EmailGenerationData) (subj
 	// You can set a custom start time here
 	loc, _ := time.LoadLocation("Asia/Kolkata")
 	// 13th august 2025, 10 am IST
-	customStartTime := time.Date(2025, time.August, 13, 10, 0, 0, 0, loc)
+	customStartTime := time.Date(2025, time.August, 14, 10, 0, 0, 0, loc)
 
 	// Create span with custom start time using trace.WithTimestamp
 	ctx := context.Background()
-	_, span := tracer.Start(ctx, "generate-personalized-email",
+	_, span := tracer.Start(ctx, "ronaldo-messi-neymar",
 		trace.WithTimestamp(customStartTime),
 	)
 
@@ -166,7 +166,7 @@ func (c *OpenAIClient) GeneratePersonalizedEmail(data EmailGenerationData) (subj
 
 		span.SetAttributes(attribute.String("email_generation_start_time", customStartTime.In(loc).Format(time.RFC3339)))
 		// 13th august 2025, 11 am IST
-		customEndTime := time.Date(2025, time.August, 13, 11, 0, 0, 0, loc)
+		customEndTime := time.Date(2025, time.August, 14, 11, 0, 0, 0, loc)
 		span.SetAttributes(attribute.String("email_generation_completion_time", customEndTime.In(loc).Format(time.RFC3339)))
 
 		fmt.Printf("===> Custom Start Time: %s\n", customStartTime.In(loc).Format(time.RFC3339))
