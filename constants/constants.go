@@ -21,6 +21,7 @@ var (
 	SERVICE_NAME                 string
 	COLLECTOR_URL                string
 	INSECURE_MODE                string
+	ENV                          string
 )
 
 // constants
@@ -66,6 +67,7 @@ func init() {
 	SERVICE_NAME = getEnv("SERVICE_NAME", "cold_emailer")
 	COLLECTOR_URL = getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317")
 	INSECURE_MODE = getEnv("INSECURE_MODE", "true")
+	ENV = getEnv("ENV", "local-dev")
 }
 
 func PrintENV() {
@@ -81,4 +83,5 @@ func PrintENV() {
 	log.Printf("SERVICE_NAME: %s", SERVICE_NAME)
 	log.Printf("COLLECTOR_URL: %s", COLLECTOR_URL)
 	log.Printf("INSECURE_MODE: %s", INSECURE_MODE)
+	log.Printf("ENV: %s", ENV)
 }

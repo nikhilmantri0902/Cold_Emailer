@@ -18,6 +18,7 @@ services:
       - SERVICE_NAME=${SERVICE_NAME}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
       - INSECURE_MODE=${INSECURE_MODE}
+      - ENV=${ENV}
     volumes:
       - .:/app
       - ./storage:/app/storage

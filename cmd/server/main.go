@@ -52,6 +52,7 @@ func initTracer() func(context.Context) error {
 		resource.WithAttributes(
 			attribute.String("service.name", constants.SERVICE_NAME),
 			attribute.String("library.language", "go"),
+			attribute.String("deployment.environment", constants.ENV),
 		),
 	)
 	if err != nil {
