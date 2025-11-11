@@ -23,8 +23,13 @@ import (
 
 	"database/sql"
 
+	"math/rand"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Global storage service instance
@@ -686,5 +691,84 @@ func GetJobStatusHandler(c *gin.Context) {
 		"created_at":   job.CreatedAt,
 		"completed_at": job.CompletedAt,
 		"metadata":     job.Metadata,
+	})
+}
+
+// GenerateLateSpansRequest defines the payload for generating spans
+type GenerateLateSpansRequest struct {
+	Count int `json:"count" binding:"required,min=1,max=10000"`
+}
+
+type bucketDefinition struct {
+	name string
+	min  time.Duration
+	max  time.Duration
+}
+
+// GenerateLateSpansHandler generates spans with custom start timestamps in specified time buckets
+func GenerateLateSpansHandler(c *gin.Context) {
+	var req GenerateLateSpansRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid request: %v", err)})
+		return
+	}
+
+	lateSpanBuckets := []bucketDefinition{
+		{name: "5m-10m", min: 5 * time.Minute, max: 10 * time.Minute},
+		{name: "10m-30m", min: 10 * time.Minute, max: 30 * time.Minute},
+		{name: "30m-2h", min: 30 * time.Minute, max: 2 * time.Hour},
+		{name: "2h-6h", min: 2 * time.Hour, max: 6 * time.Hour},
+		{name: "6h-1d", min: 6 * time.Hour, max: 24 * time.Hour},
+	}
+
+	rand.Seed(time.Now().UnixNano())
+
+	type bucketResult struct {
+		Name      string   `json:"name"`
+		Count     int      `json:"count"`
+		SpanNames []string `json:"span_names"`
+	}
+
+	results := make([]bucketResult, len(lateSpanBuckets))
+	for i, b := range lateSpanBuckets {
+		results[i] = bucketResult{Name: b.name, Count: 0, SpanNames: []string{}}
+	}
+
+	tracer := otel.Tracer(constants.SERVICE_NAME)
+	now := time.Now()
+
+	for i := 0; i < req.Count; i++ {
+		// Distribute roughly evenly across buckets
+		bIdx := i % len(lateSpanBuckets)
+		b := lateSpanBuckets[bIdx]
+
+		// Random offset within the bucket [min, max)
+		minMs := b.min.Milliseconds()
+		maxMs := b.max.Milliseconds()
+		offsetMs := minMs + rand.Int63n(maxMs-minMs)
+		startTime := now.Add(-time.Duration(offsetMs) * time.Millisecond)
+
+		spanName := fmt.Sprintf("late-span-%s-%d", b.name, i+1)
+
+		ctx := context.Background()
+		ctx, span := tracer.Start(ctx, spanName, trace.WithTimestamp(startTime))
+		// Include some useful attributes for debugging
+		span.SetAttributes(
+			attribute.String("bucket", b.name),
+			attribute.Int("sequence", i+1),
+			attribute.String("generated_by", "GenerateLateSpansHandler"),
+		)
+		// End span shortly after its start
+		endTime := startTime.Add(time.Duration(100+rand.Intn(900)) * time.Millisecond)
+		span.End(trace.WithTimestamp(endTime))
+
+		results[bIdx].Count++
+		results[bIdx].SpanNames = append(results[bIdx].SpanNames, spanName)
+		_ = ctx
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"total_generated": req.Count,
+		"buckets":         results,
 	})
 }

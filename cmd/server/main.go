@@ -133,6 +133,7 @@ func main() {
 	apiRoutes.POST("/backfill-company-details", api.BackfillCompanyDetails)
 	apiRoutes.POST("/send-few-initial-emails", api.SendFewInitialEmailsHandler)
 	apiRoutes.POST("/send-few-follow-up-emails", api.SendFewFollowUpEmailsHandler)
+	apiRoutes.POST("/generate-late-spans", api.GenerateLateSpansHandler)
 
 	// Frontend API endpoints
 	frontendRoutes := r.Group("/frontend")
