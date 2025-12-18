@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -748,7 +749,7 @@ func GenerateLateSpansHandler(c *gin.Context) {
 		offsetMs := minMs + rand.Int63n(maxMs-minMs)
 		startTime := now.Add(-time.Duration(offsetMs) * time.Millisecond)
 
-		spanName := fmt.Sprintf("late-span-%s-%d", b.name, i+1)
+		spanName := fmt.Sprintf("new-late-span-%s-%d", b.name, i+1)
 
 		ctx := context.Background()
 		ctx, span := tracer.Start(ctx, spanName, trace.WithTimestamp(startTime))
@@ -756,8 +757,13 @@ func GenerateLateSpansHandler(c *gin.Context) {
 		span.SetAttributes(
 			attribute.String("bucket", b.name),
 			attribute.Int("sequence", i+1),
-			attribute.String("generated_by", "GenerateLateSpansHandler"),
+			attribute.String("generated.by", "GenerateLateSpansHandler"),
 		)
+		// Add special attribute for the 2h-6h bucket
+		if b.name == "5m-10m" {
+			log.Println("===> Adding special attribute for 2h-6h bucket")
+			span.SetAttributes(attribute.String("special.random.attribute", "hello world"))
+		}
 		// End span shortly after its start
 		endTime := startTime.Add(time.Duration(100+rand.Intn(900)) * time.Millisecond)
 		span.End(trace.WithTimestamp(endTime))
